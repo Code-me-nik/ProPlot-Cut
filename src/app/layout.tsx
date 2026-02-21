@@ -18,6 +18,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({
@@ -33,7 +34,7 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Code+Pro:wght@400;600&display=swap" rel="stylesheet" />
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
-      <body className="font-body antialiased bg-background text-foreground overflow-hidden h-screen touch-none">
+      <body className="font-body antialiased bg-background text-foreground overflow-hidden h-screen touch-none selection:bg-primary/30">
         {children}
       </body>
     </html>
