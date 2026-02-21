@@ -5,8 +5,10 @@ import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
 import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, ArrowUpRight, ArrowUpLeft, RotateCcw, Zap } from "lucide-react"
 
+export type MachineMode = 'PLOTTER' | 'STICKER' | 'VINYL';
+
 interface JogControlsProps {
-  mode: 'PLOTTER' | 'CNC';
+  mode: MachineMode;
   onMove: (axis: string, amount: number) => void;
 }
 
@@ -63,20 +65,20 @@ export function JogControls({ mode, onMove }: JogControlsProps) {
 
       <div className="grid grid-cols-2 gap-4 mt-2">
         <div className="flex flex-col gap-2">
-          <span className="text-[10px] uppercase text-muted-foreground font-bold">{mode === 'PLOTTER' ? 'Roller Z' : 'Z Axis'}</span>
+          <span className="text-[10px] uppercase text-muted-foreground font-bold">Tool Z-Axis</span>
           <div className="flex gap-2">
             <Button variant="outline" className="flex-1 h-10 border-primary/20" onClick={() => onMove('Z', stepSize)}>
-              <ArrowUpRight className="w-4 h-4 mr-1" /> Up
+              <ArrowUpRight className="w-4 h-4 mr-1" /> Lift
             </Button>
             <Button variant="outline" className="flex-1 h-10 border-primary/20" onClick={() => onMove('Z', -stepSize)}>
-              <ArrowUpLeft className="w-4 h-4 mr-1" /> Down
+              <ArrowUpLeft className="w-4 h-4 mr-1" /> Drop
             </Button>
           </div>
         </div>
         <div className="flex flex-col gap-2">
           <div className="flex justify-between items-center">
-            <span className="text-[10px] uppercase text-muted-foreground font-bold">Speed</span>
-            <span className="text-[10px] font-mono">{feedRate} mm/min</span>
+            <span className="text-[10px] uppercase text-muted-foreground font-bold">Feed Rate</span>
+            <span className="text-[10px] font-mono">{feedRate} mm/m</span>
           </div>
           <Slider 
             value={[feedRate]} 

@@ -2,11 +2,13 @@
 
 import React from 'react'
 import { Button } from "@/components/ui/button"
-import { PencilLine, Drill, Info } from "lucide-react"
+import { PencilLine, Scissors, Layers, Info } from "lucide-react"
+
+export type MachineMode = 'PLOTTER' | 'STICKER' | 'VINYL';
 
 interface ModeSwitcherProps {
-  currentMode: 'PLOTTER' | 'CNC';
-  onModeChange: (mode: 'PLOTTER' | 'CNC') => void;
+  currentMode: MachineMode;
+  onModeChange: (mode: MachineMode) => void;
   disabled?: boolean;
 }
 
@@ -25,7 +27,7 @@ export function ModeSwitcher({ currentMode, onModeChange, disabled }: ModeSwitch
       <div className="grid grid-cols-1 gap-2 flex-1">
         <Button 
           variant={currentMode === 'PLOTTER' ? 'default' : 'outline'}
-          className={`h-full flex flex-col items-center justify-center gap-2 transition-all ${
+          className={`h-full flex flex-col items-center justify-center gap-2 transition-all py-4 ${
             currentMode === 'PLOTTER' ? 'bg-primary border-primary glow-blue' : 'border-primary/20 hover:border-primary/60'
           }`}
           onClick={() => onModeChange('PLOTTER')}
@@ -34,22 +36,37 @@ export function ModeSwitcher({ currentMode, onModeChange, disabled }: ModeSwitch
           <PencilLine className={`w-8 h-8 ${currentMode === 'PLOTTER' ? 'text-white' : 'text-muted-foreground'}`} />
           <div className="flex flex-col">
             <span className="text-sm font-black uppercase">Plotter</span>
-            <span className="text-[9px] opacity-60 font-medium">Pen & Roller Control</span>
+            <span className="text-[9px] opacity-60 font-medium">Pen & Ink Control</span>
           </div>
         </Button>
 
         <Button 
-          variant={currentMode === 'CNC' ? 'default' : 'outline'}
-          className={`h-full flex flex-col items-center justify-center gap-2 transition-all ${
-            currentMode === 'CNC' ? 'bg-primary border-primary glow-blue' : 'border-primary/20 hover:border-primary/60'
+          variant={currentMode === 'STICKER' ? 'default' : 'outline'}
+          className={`h-full flex flex-col items-center justify-center gap-2 transition-all py-4 ${
+            currentMode === 'STICKER' ? 'bg-primary border-primary glow-blue' : 'border-primary/20 hover:border-primary/60'
           }`}
-          onClick={() => onModeChange('CNC')}
+          onClick={() => onModeChange('STICKER')}
           disabled={disabled}
         >
-          <Drill className={`w-8 h-8 ${currentMode === 'CNC' ? 'text-white' : 'text-muted-foreground'}`} />
+          <Scissors className={`w-8 h-8 ${currentMode === 'STICKER' ? 'text-white' : 'text-muted-foreground'}`} />
           <div className="flex flex-col">
-            <span className="text-sm font-black uppercase">CNC Router</span>
-            <span className="text-[9px] opacity-60 font-medium">Spindle & Z-Depth</span>
+            <span className="text-sm font-black uppercase">Sticker Cutter</span>
+            <span className="text-[9px] opacity-60 font-medium">Die-Cut Pressure</span>
+          </div>
+        </Button>
+
+        <Button 
+          variant={currentMode === 'VINYL' ? 'default' : 'outline'}
+          className={`h-full flex flex-col items-center justify-center gap-2 transition-all py-4 ${
+            currentMode === 'VINYL' ? 'bg-primary border-primary glow-blue' : 'border-primary/20 hover:border-primary/60'
+          }`}
+          onClick={() => onModeChange('VINYL')}
+          disabled={disabled}
+        >
+          <Layers className={`w-8 h-8 ${currentMode === 'VINYL' ? 'text-white' : 'text-muted-foreground'}`} />
+          <div className="flex flex-col">
+            <span className="text-sm font-black uppercase">Vinyl Cutter</span>
+            <span className="text-[9px] opacity-60 font-medium">Roll-Fed Decals</span>
           </div>
         </Button>
       </div>

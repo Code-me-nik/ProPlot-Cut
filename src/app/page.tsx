@@ -11,9 +11,11 @@ import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { Play, Pause, Square, Power, Download, HelpCircle, FileText, AlertTriangle } from 'lucide-react'
 
+export type MachineMode = 'PLOTTER' | 'STICKER' | 'VINYL';
+
 export default function Dashboard() {
   const [machineState, setMachineState] = useState<'IDLE' | 'RUN' | 'HOLD' | 'ALARM' | 'HOME'>('IDLE');
-  const [mode, setMode] = useState<'PLOTTER' | 'CNC'>('PLOTTER');
+  const [mode, setMode] = useState<MachineMode>('PLOTTER');
   const [pos, setPos] = useState({ x: 0, y: 0, z: 0 });
   const [progress, setProgress] = useState(0);
   const [usbConnected, setUsbConnected] = useState(true);
@@ -58,7 +60,7 @@ export default function Dashboard() {
     setMachineState('IDLE');
     setProgress(0);
     addLog('sent', '! (Feed Hold)');
-    addLog('sent', 'M5 (Spindle Stop)');
+    addLog('sent', 'M5 (Stop Head)');
     addLog('warning', 'Machine stopped by user.');
   };
 
@@ -71,7 +73,6 @@ export default function Dashboard() {
 
   const handleGenTest = (gcode: string) => {
     addLog('received', 'Custom test G-Code loaded.');
-    // Simulated preview refresh
   };
 
   return (
@@ -224,7 +225,7 @@ export default function Dashboard() {
             <span>GRBL v1.1H</span>
           </div>
           <div className="flex items-center gap-2">
-             <span className="text-primary uppercase">Plotter Pen:</span>
+             <span className="text-primary uppercase">Cutter/Pen:</span>
              <span className="text-foreground">LIFTED</span>
           </div>
         </div>

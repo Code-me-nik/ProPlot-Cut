@@ -2,7 +2,9 @@
 
 import React from 'react'
 import { Badge } from "@/components/ui/badge"
-import { Cpu, Activity, Link2, ShieldCheck } from "lucide-react"
+import { Cpu, Activity, Link2 } from "lucide-react"
+
+export type MachineMode = 'PLOTTER' | 'STICKER' | 'VINYL';
 
 interface StatusMonitorProps {
   x: number;
@@ -10,7 +12,7 @@ interface StatusMonitorProps {
   z: number;
   state: 'IDLE' | 'RUN' | 'HOLD' | 'ALARM' | 'HOME';
   usbConnected: boolean;
-  mode: 'PLOTTER' | 'CNC';
+  mode: MachineMode;
 }
 
 export function StatusMonitor({ x, y, z, state, usbConnected, mode }: StatusMonitorProps) {
@@ -21,6 +23,15 @@ export function StatusMonitor({ x, y, z, state, usbConnected, mode }: StatusMoni
       case 'HOLD': return 'bg-orange-500';
       case 'ALARM': return 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]';
       default: return 'bg-gray-500';
+    }
+  }
+
+  const getModeDisplay = () => {
+    switch(mode) {
+      case 'PLOTTER': return 'PLOTTER';
+      case 'STICKER': return 'STICKER CUT';
+      case 'VINYL': return 'VINYL CUT';
+      default: return mode;
     }
   }
 
@@ -44,7 +55,7 @@ export function StatusMonitor({ x, y, z, state, usbConnected, mode }: StatusMoni
           <Badge className={`${getStatusColor()} border-none text-white px-3 py-0 text-[10px] font-black`}>
             {state}
           </Badge>
-          <span className="text-[10px] font-bold text-primary italic uppercase">{mode} MODE</span>
+          <span className="text-[10px] font-bold text-primary italic uppercase">{getModeDisplay()}</span>
         </div>
       </div>
 
