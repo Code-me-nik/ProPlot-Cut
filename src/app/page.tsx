@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { StatusMonitor } from '@/components/machine/status-monitor'
 import { JogControls } from '@/components/machine/jog-controls'
 import { ToolpathRenderer } from '@/components/preview/toolpath-renderer'
@@ -41,10 +41,13 @@ export default function Dashboard() {
   const [usbConnected, setUsbConnected] = useState(false);
   const [logs, setLogs] = useState<{ timestamp: string, type: 'sent' | 'received' | 'error' | 'warning', message: string }[]>([]);
   const [connection, setConnection] = useState<ArduinoConnection | null>(null);
+  const [progress, setProgress] = useState(0);
   
   // File System State
   const [jobFolder, setJobFolder] = useState<string | null>(null);
   const [jobFiles, setJobFiles] = useState<JobFile[]>([]);
+
+  const progressInterval = useRef<NodeJS.Timeout | null>(null);
 
   const addLog = useCallback((type: 'sent' | 'received' | 'error' | 'warning', message: string) => {
     const timestamp = new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -67,10 +70,36 @@ export default function Dashboard() {
     attemptAutoConnect();
   }, [handleIncomingData, addLog]);
 
+  // Simulate progress when running
+  useEffect(() => {
+    if (machineState === 'RUN') {
+      progressInterval.current = setInterval(() => {
+        setProgress(prev => {
+          if (prev >= 100) {
+            setMachineState('IDLE');
+            addLog('received', 'Job Complete.');
+            return 100;
+          }
+          return prev + 0.5;
+        });
+      }, 500);
+    } else {
+      if (progressInterval.current) clearInterval(progressInterval.current);
+    }
+    return () => {
+      if (progressInterval.current) clearInterval(progressInterval.current);
+    }
+  }, [machineState, addLog]);
+
   const handleStart = async () => {
+    if (machineState === 'RUN') {
+      setMachineState('HOLD');
+      return;
+    }
     setMachineState('RUN');
-    const commands = ['G21', 'G90', 'X0'];
+    if (progress >= 100) setProgress(0);
     
+    const commands = ['G21', 'G90', 'X0'];
     if (connection) {
       for (const cmd of commands) {
         await connection.send(cmd);
@@ -83,6 +112,7 @@ export default function Dashboard() {
 
   const handleStop = async () => {
     setMachineState('IDLE');
+    setProgress(0);
     if (connection) {
       await connection.send('STOP');
       addLog('sent', 'STOP (E-Stop Command)');
@@ -191,7 +221,7 @@ export default function Dashboard() {
           </div>
 
           <div className="flex-1 overflow-hidden relative">
-            {/* Desktop Layout (Standard Grid) - Shown above LG breakpoint */}
+            {/* Desktop Layout (Standard Grid) */}
             <div className="hidden lg:grid grid-cols-12 gap-4 h-full p-4">
               <div className="col-span-3 flex flex-col gap-4 overflow-y-auto pr-1">
                 <ModeSwitcher currentMode={mode} onModeChange={setMode} disabled={machineState === 'RUN'} />
@@ -200,10 +230,10 @@ export default function Dashboard() {
               <div className="col-span-6 flex flex-col gap-4">
                 <StatusMonitor x={pos.x} y={pos.y} z={pos.z} state={machineState} usbConnected={usbConnected} mode={mode} />
                 <div className="flex-1 min-h-0 bg-black/40 rounded-lg border border-white/5 overflow-hidden">
-                  <ToolpathRenderer currentPath="" completedLines={0} />
+                  <ToolpathRenderer currentPath="" completedLines={0} progress={progress} />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <Button size="lg" className={cn("h-14 uppercase font-black tracking-widest text-lg transition-all", machineState === 'RUN' ? 'bg-orange-500' : 'bg-green-600 glow-green active:scale-95')} onClick={machineState === 'RUN' ? () => setMachineState('HOLD') : handleStart}>
+                  <Button size="lg" className={cn("h-14 uppercase font-black tracking-widest text-lg transition-all", machineState === 'RUN' ? 'bg-orange-500' : 'bg-green-600 glow-green active:scale-95')} onClick={handleStart}>
                     {machineState === 'RUN' ? <><Pause className="mr-2" /> Pause</> : <><Play className="mr-2" /> Start</>}
                   </Button>
                   <Button size="lg" variant="destructive" className="h-14 uppercase font-black tracking-widest text-lg glow-red active:scale-95" onClick={handleStop}><Square className="mr-2 fill-current" /> Stop</Button>
@@ -218,12 +248,12 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Mobile/Tablet View with Tabs - Shown below LG breakpoint */}
+            {/* Mobile/Tablet View with Tabs */}
             <div className="lg:hidden h-full flex flex-col">
               <TabsContent value="dashboard" className="flex-1 m-0 flex flex-col gap-3 p-3 overflow-hidden">
                 <StatusMonitor x={pos.x} y={pos.y} z={pos.z} state={machineState} usbConnected={usbConnected} mode={mode} />
                 <div className="flex-1 min-h-0 bg-black/40 rounded-lg border border-white/5 overflow-hidden">
-                  <ToolpathRenderer currentPath="" completedLines={0} />
+                  <ToolpathRenderer currentPath="" completedLines={0} progress={progress} />
                 </div>
                 <div className="grid grid-cols-2 gap-2 shrink-0">
                    <Button className={cn("h-12 uppercase font-black", machineState === 'RUN' ? 'bg-orange-500' : 'bg-green-600')} onClick={handleStart}>
