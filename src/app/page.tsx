@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { StatusMonitor } from '@/components/machine/status-monitor'
 import { JogControls } from '@/components/machine/jog-controls'
 import { ToolpathRenderer } from '@/components/preview/toolpath-renderer'
@@ -27,8 +27,10 @@ import {
   AlertTriangle,
   Usb,
   RefreshCw,
-  Search
+  Search,
+  Unlink
 } from 'lucide-react'
+import { connectToArduino, getExistingPort, ArduinoConnection } from '@/lib/arduino-connection'
 
 export type MachineMode = 'PLOTTER' | 'STICKER' | 'VINYL';
 
@@ -37,75 +39,125 @@ export default function Dashboard() {
   const [mode, setMode] = useState<MachineMode>('PLOTTER');
   const [pos, setPos] = useState({ x: 0, y: 0, z: 0 });
   const [progress, setProgress] = useState(0);
-  const [usbConnected, setUsbConnected] = useState(true);
+  const [usbConnected, setUsbConnected] = useState(false);
   const [selectedBoard, setSelectedBoard] = useState('uno');
   const [isScanning, setIsScanning] = useState(false);
   const [logs, setLogs] = useState<{ timestamp: string, type: 'sent' | 'received' | 'error' | 'warning', message: string }[]>([]);
+  const [connection, setConnection] = useState<ArduinoConnection | null>(null);
 
-  // Simulation of real-time state updates
+  const addLog = useCallback((type: 'sent' | 'received' | 'error' | 'warning', message: string) => {
+    const timestamp = new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    setLogs(prev => [...prev.slice(-49), { timestamp, type, message }]);
+  }, []);
+
+  // Handle incoming serial data
+  const handleIncomingData = useCallback((data: string) => {
+    addLog('received', data);
+    // Basic logic for parsing GRBL status messages could go here
+    if (data.toLowerCase().includes('ok')) {
+      // Logic for queue processing
+    }
+  }, [addLog]);
+
+  // Automatic connection attempt on mount
   useEffect(() => {
-    if (machineState === 'RUN') {
+    const attemptAutoConnect = async () => {
+      const conn = await getExistingPort(handleIncomingData);
+      if (conn) {
+        setConnection(conn);
+        setUsbConnected(true);
+        addLog('received', 'Resumed existing Arduino connection.');
+      }
+    };
+    attemptAutoConnect();
+  }, [handleIncomingData, addLog]);
+
+  // Simulation of real-time state updates (only if simulated or just for UI feel)
+  useEffect(() => {
+    if (machineState === 'RUN' && !connection) {
       const interval = setInterval(() => {
         setProgress(prev => {
           if (prev >= 100) {
             setMachineState('IDLE');
-            addLog('received', 'Job complete.');
+            addLog('received', 'Simulation job complete.');
             return 100;
           }
           return prev + 0.5;
         });
-        setPos(prev => ({ 
-          x: prev.x + (Math.random() - 0.5) * 2, 
-          y: prev.y + (Math.random() - 0.5) * 2,
-          z: prev.z 
-        }));
       }, 500);
       return () => clearInterval(interval);
     }
-  }, [machineState]);
+  }, [machineState, connection, addLog]);
 
-  const addLog = (type: 'sent' | 'received' | 'error' | 'warning', message: string) => {
-    const timestamp = new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    setLogs(prev => [...prev.slice(-49), { timestamp, type, message }]);
-  };
-
-  const handleStart = () => {
+  const handleStart = async () => {
     setMachineState('RUN');
-    addLog('sent', '$H (Homing)');
-    addLog('received', 'ok');
-    addLog('sent', 'G0 X0 Y0 Z0');
-    addLog('received', 'ok');
+    const commands = ['$H', 'G21', 'G90', 'G0 X0 Y0 Z0'];
+    
+    if (connection) {
+      for (const cmd of commands) {
+        await connection.send(cmd);
+        addLog('sent', cmd);
+      }
+    } else {
+      addLog('sent', '$H (Homing Simulated)');
+      addLog('received', 'ok');
+    }
   };
 
-  const handleStop = () => {
+  const handleStop = async () => {
     setMachineState('IDLE');
     setProgress(0);
-    addLog('sent', '! (Feed Hold)');
-    addLog('sent', 'M5 (Stop Head)');
+    if (connection) {
+      await connection.send('!'); // GRBL Feed Hold
+      await connection.send('M5'); // Stop spindle/pen
+      addLog('sent', '! (Feed Hold)');
+    }
     addLog('warning', 'Machine stopped by user.');
   };
 
-  const handleMove = (axis: string, amount: number) => {
+  const handleMove = async (axis: string, amount: number) => {
     if (machineState !== 'IDLE') return;
-    addLog('sent', `G91 G0 ${axis}${amount}`);
+    const gcode = `G91 G0 ${axis}${amount}`;
+    
+    if (connection) {
+      await connection.send(gcode);
+    }
+    
+    addLog('sent', gcode);
     setPos(prev => ({ ...prev, [axis.toLowerCase()]: prev[axis.toLowerCase() as keyof typeof prev] + amount }));
-    addLog('received', 'ok');
+    
+    if (!connection) {
+      addLog('received', 'ok (simulated)');
+    }
   };
 
   const handleGenTest = (gcode: string) => {
     addLog('received', 'Custom test G-Code loaded.');
   };
 
-  const handleScanDevices = () => {
+  const handleConnect = async () => {
     setIsScanning(true);
-    addLog('sent', 'Scanning for Arduino devices...');
+    addLog('sent', 'Requesting Arduino Serial Port...');
     
-    // Simulate scan delay
-    setTimeout(() => {
-      setIsScanning(false);
+    const conn = await connectToArduino(handleIncomingData);
+    
+    setIsScanning(false);
+    if (conn) {
+      setConnection(conn);
       setUsbConnected(true);
-      addLog('received', `Found Arduino ${selectedBoard.toUpperCase()} on /dev/ttyUSB0`);
-    }, 2000);
+      addLog('received', `Connected to Arduino Uno @ 115200 baud`);
+    } else {
+      addLog('error', 'Connection failed or cancelled by user.');
+    }
+  };
+
+  const handleDisconnect = async () => {
+    if (connection) {
+      await connection.disconnect();
+      setConnection(null);
+      setUsbConnected(false);
+      addLog('warning', 'Serial port disconnected.');
+    }
   };
 
   return (
@@ -123,13 +175,13 @@ export default function Dashboard() {
         </div>
         
         <div className="flex items-center gap-4">
-          {/* Arduino Selection & Scan */}
+          {/* Arduino Selection & Connect */}
           <div className="flex items-center gap-2 bg-secondary/40 p-1 rounded-md border border-white/10">
             <div className="flex items-center gap-2 px-2 text-muted-foreground">
               <Usb className="w-3.5 h-3.5" />
               <span className="text-[10px] font-black uppercase tracking-tighter">Device</span>
             </div>
-            <Select value={selectedBoard} onValueChange={setSelectedBoard} disabled={machineState === 'RUN'}>
+            <Select value={selectedBoard} onValueChange={setSelectedBoard} disabled={machineState === 'RUN' || usbConnected}>
               <SelectTrigger className="w-[140px] h-8 text-[10px] font-bold bg-black/40 border-none">
                 <SelectValue placeholder="Select Board" />
               </SelectTrigger>
@@ -141,16 +193,29 @@ export default function Dashboard() {
                 <SelectItem value="esp32">ESP32 Dev Module</SelectItem>
               </SelectContent>
             </Select>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="h-8 gap-2 text-[10px] font-black uppercase hover:bg-primary/20"
-              onClick={handleScanDevices}
-              disabled={isScanning || machineState === 'RUN'}
-            >
-              {isScanning ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
-              {isScanning ? 'Scanning...' : 'Scan'}
-            </Button>
+            {usbConnected ? (
+              <Button 
+                variant="destructive" 
+                size="sm" 
+                className="h-8 gap-2 text-[10px] font-black uppercase"
+                onClick={handleDisconnect}
+                disabled={machineState === 'RUN'}
+              >
+                <Unlink className="w-3.5 h-3.5" />
+                Disconnect
+              </Button>
+            ) : (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-8 gap-2 text-[10px] font-black uppercase hover:bg-primary/20"
+                onClick={handleConnect}
+                disabled={isScanning || machineState === 'RUN'}
+              >
+                {isScanning ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
+                {isScanning ? 'Connecting...' : 'Connect'}
+              </Button>
+            )}
           </div>
 
           <div className="flex items-center gap-4 bg-secondary/80 px-4 py-1.5 rounded-full border border-white/5">
