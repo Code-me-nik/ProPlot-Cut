@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useRef, useCallback } from 'react'
@@ -113,42 +114,48 @@ export function JogControls({ mode, onMove }: JogControlsProps) {
         <div />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-4 border-t border-white/5 pt-4">
         <div className="flex flex-col gap-2">
-          <span className="text-[8px] font-black uppercase tracking-widest text-muted-foreground">Tool Height (Z)</span>
+          <div className="flex justify-between items-center h-4">
+            <span className="text-[8px] font-black uppercase tracking-widest text-muted-foreground">Tool Height</span>
+            <span className="text-[9px] font-code font-bold text-muted-foreground/60 uppercase">Z-Axis</span>
+          </div>
           <div className="flex gap-2">
             <Button 
               variant="outline" 
-              className="flex-1 h-12 border-white/10 text-[10px] font-black active-press uppercase" 
+              className="flex-1 h-11 border-white/10 text-[9px] font-black active-press uppercase tracking-tighter" 
               onPointerDown={() => startMoving('Z', 1)}
               onPointerUp={stopMoving}
               onPointerLeave={stopMoving}
             >
-              <ArrowUpRight className="w-4 h-4 mr-2" /> Lift
+              <ArrowUpRight className="w-3.5 h-3.5 mr-1" /> Lift
             </Button>
             <Button 
               variant="outline" 
-              className="flex-1 h-12 border-white/10 text-[10px] font-black active-press uppercase" 
+              className="flex-1 h-11 border-white/10 text-[9px] font-black active-press uppercase tracking-tighter" 
               onPointerDown={() => startMoving('Z', -1)}
               onPointerUp={stopMoving}
               onPointerLeave={stopMoving}
             >
-              <ArrowUpLeft className="w-4 h-4 mr-2" /> Drop
+              <ArrowUpLeft className="w-3.5 h-3.5 mr-1" /> Drop
             </Button>
           </div>
         </div>
+        
         <div className="flex flex-col gap-2">
-          <div className="flex justify-between items-center">
+          <div className="flex justify-between items-center h-4">
             <span className="text-[8px] font-black uppercase tracking-widest text-muted-foreground">Feed Speed</span>
             <span className="text-[10px] font-code font-bold text-cyan-400">{feedRate}</span>
           </div>
-          <Slider 
-            value={[feedRate]} 
-            onValueChange={([v]) => setFeedRate(v)} 
-            max={5000} 
-            step={100} 
-            className="py-2"
-          />
+          <div className="flex items-center h-11">
+            <Slider 
+              value={[feedRate]} 
+              onValueChange={([v]) => setFeedRate(v)} 
+              max={5000} 
+              step={100} 
+              className="w-full"
+            />
+          </div>
         </div>
       </div>
     </div>
