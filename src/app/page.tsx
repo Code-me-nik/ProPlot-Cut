@@ -68,7 +68,7 @@ export default function Dashboard() {
 
   const handleStart = async () => {
     setMachineState('RUN');
-    const commands = ['G21', 'G90', 'G0 X0'];
+    const commands = ['G21', 'G90', 'X0'];
     
     if (connection) {
       for (const cmd of commands) {
@@ -101,6 +101,8 @@ export default function Dashboard() {
     }
     
     addLog('sent', command);
+    
+    // Optimistic UI update
     setPos(prev => ({ 
       ...prev, 
       [axis.toLowerCase()]: prev[axis.toLowerCase() as keyof typeof prev] + amount 
