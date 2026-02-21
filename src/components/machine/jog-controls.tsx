@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react'
+import React, { useState, useRef, useCallback } from 'react'
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
 import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, ArrowUpRight, ArrowUpLeft, RotateCcw, Zap } from "lucide-react"
@@ -15,8 +15,34 @@ interface JogControlsProps {
 export function JogControls({ mode, onMove }: JogControlsProps) {
   const [stepSize, setStepSize] = useState(1);
   const [feedRate, setFeedRate] = useState(1000);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const pressStartTimeRef = useRef<number>(0);
 
   const steps = [0.1, 1, 10, 50];
+
+  const startMoving = useCallback((axis: string, direction: number) => {
+    pressStartTimeRef.current = Date.now();
+    
+    // Initial move on press
+    onMove(axis, direction * stepSize);
+
+    // After a delay, start continuous small steps
+    intervalRef.current = setTimeout(() => {
+      intervalRef.current = setInterval(() => {
+        // Continuous movement uses smaller increments for smoothness
+        const continuousStep = stepSize > 1 ? stepSize / 5 : stepSize;
+        onMove(axis, direction * continuousStep);
+      }, 100);
+    }, 300); // 300ms hold threshold
+  }, [onMove, stepSize]);
+
+  const stopMoving = useCallback(() => {
+    if (intervalRef.current) {
+      clearTimeout(intervalRef.current);
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  }, []);
 
   return (
     <div className="flex flex-col gap-4 p-4 bg-secondary/50 rounded-lg border border-border/50">
@@ -39,25 +65,53 @@ export function JogControls({ mode, onMove }: JogControlsProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-2 max-w-[200px] mx-auto">
+      <div className="grid grid-cols-3 gap-2 max-w-[200px] mx-auto select-none">
         <div />
-        <Button variant="outline" size="icon" onClick={() => onMove('Y', stepSize)} className="h-12 w-12 border-primary/20 hover:border-primary">
+        <Button 
+          variant="outline" 
+          size="icon" 
+          onPointerDown={() => startMoving('Y', 1)}
+          onPointerUp={stopMoving}
+          onPointerLeave={stopMoving}
+          className="h-12 w-12 border-primary/20 hover:border-primary active:bg-primary/20"
+        >
           <ChevronUp />
         </Button>
         <div />
 
-        <Button variant="outline" size="icon" onClick={() => onMove('X', -stepSize)} className="h-12 w-12 border-primary/20 hover:border-primary">
+        <Button 
+          variant="outline" 
+          size="icon" 
+          onPointerDown={() => startMoving('X', -1)}
+          onPointerUp={stopMoving}
+          onPointerLeave={stopMoving}
+          className="h-12 w-12 border-primary/20 hover:border-primary active:bg-primary/20"
+        >
           <ChevronLeft />
         </Button>
         <Button variant="outline" size="icon" className="h-12 w-12 bg-primary/10 border-primary/40">
           <RotateCcw className="w-4 h-4 text-primary" />
         </Button>
-        <Button variant="outline" size="icon" onClick={() => onMove('X', stepSize)} className="h-12 w-12 border-primary/20 hover:border-primary">
+        <Button 
+          variant="outline" 
+          size="icon" 
+          onPointerDown={() => startMoving('X', 1)}
+          onPointerUp={stopMoving}
+          onPointerLeave={stopMoving}
+          className="h-12 w-12 border-primary/20 hover:border-primary active:bg-primary/20"
+        >
           <ChevronRight />
         </Button>
 
         <div />
-        <Button variant="outline" size="icon" onClick={() => onMove('Y', -stepSize)} className="h-12 w-12 border-primary/20 hover:border-primary">
+        <Button 
+          variant="outline" 
+          size="icon" 
+          onPointerDown={() => startMoving('Y', -1)}
+          onPointerUp={stopMoving}
+          onPointerLeave={stopMoving}
+          className="h-12 w-12 border-primary/20 hover:border-primary active:bg-primary/20"
+        >
           <ChevronDown />
         </Button>
         <div />
@@ -67,10 +121,22 @@ export function JogControls({ mode, onMove }: JogControlsProps) {
         <div className="flex flex-col gap-2">
           <span className="text-[10px] uppercase text-muted-foreground font-bold">Tool Z-Axis</span>
           <div className="flex gap-2">
-            <Button variant="outline" className="flex-1 h-10 border-primary/20" onClick={() => onMove('Z', stepSize)}>
+            <Button 
+              variant="outline" 
+              className="flex-1 h-10 border-primary/20" 
+              onPointerDown={() => startMoving('Z', 1)}
+              onPointerUp={stopMoving}
+              onPointerLeave={stopMoving}
+            >
               <ArrowUpRight className="w-4 h-4 mr-1" /> Lift
             </Button>
-            <Button variant="outline" className="flex-1 h-10 border-primary/20" onClick={() => onMove('Z', -stepSize)}>
+            <Button 
+              variant="outline" 
+              className="flex-1 h-10 border-primary/20" 
+              onPointerDown={() => startMoving('Z', -1)}
+              onPointerUp={stopMoving}
+              onPointerLeave={stopMoving}
+            >
               <ArrowUpLeft className="w-4 h-4 mr-1" /> Drop
             </Button>
           </div>
@@ -89,6 +155,9 @@ export function JogControls({ mode, onMove }: JogControlsProps) {
           />
         </div>
       </div>
+      <p className="text-[9px] text-muted-foreground italic text-center opacity-70">
+        Tip: Hold button for continuous rotation
+      </p>
     </div>
   )
 }

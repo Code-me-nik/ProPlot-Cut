@@ -37,15 +37,25 @@
 }
 
 .glow-green {
-  box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+  box-shadow: 0 0 15px rgba(0, 255, 0, 0.6);
 }
 
 .glow-red {
-  box-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+  box-shadow: 0 0 15px rgba(255, 0, 0, 0.6);
 }
 
 .glow-blue {
-  box-shadow: 0 0 15px rgba(63, 81, 181, 0.4);
+  box-shadow: 0 0 20px rgba(63, 81, 181, 0.5);
+}
+
+.neon-connection {
+  box-shadow: 0 0 25px rgba(0, 243, 255, 0.4), inset 0 0 10px rgba(0, 243, 255, 0.2);
+  border-color: rgba(0, 243, 255, 0.6) !important;
+}
+
+.neon-text-blue {
+  text-shadow: 0 0 8px rgba(0, 243, 255, 0.8);
+  color: #00f3ff;
 }
 
 /* Custom scrollbar for terminal feel */
@@ -62,4 +72,13 @@
 }
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground) / 0.5);
+}
+
+@keyframes pulse-neon {
+  0%, 100% { opacity: 1; filter: brightness(1.2); }
+  50% { opacity: 0.8; filter: brightness(0.8); }
+}
+
+.animate-neon {
+  animation: pulse-neon 1.5s ease-in-out infinite;
 }

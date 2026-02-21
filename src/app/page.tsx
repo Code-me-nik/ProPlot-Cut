@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState, useEffect, useCallback } from 'react'
@@ -34,6 +33,7 @@ import {
 } from 'lucide-react'
 import { connectToArduino, getExistingPort, ArduinoConnection } from '@/lib/arduino-connection'
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { cn } from "@/lib/utils"
 
 export type MachineMode = 'PLOTTER' | 'STICKER' | 'VINYL';
 
@@ -96,14 +96,13 @@ export default function Dashboard() {
   const handleMove = async (axis: string, amount: number) => {
     if (machineState !== 'IDLE' && machineState !== 'HOLD') return;
     
-    const command = `${axis}${amount}`;
+    const command = `${axis}${amount.toFixed(2)}`;
     
     if (connection) {
       await connection.send(command);
       addLog('sent', command);
     } else {
       addLog('sent', `${command} (SIMULATED)`);
-      addLog('received', 'ok (simulated)');
     }
     
     setPos(prev => ({ 
@@ -137,7 +136,7 @@ export default function Dashboard() {
       await connection.disconnect();
       setConnection(null);
       setUsbConnected(false);
-      addLog('warning', 'Serial port disconnected. Arduino IDE is now free to upload.');
+      addLog('warning', 'Serial port disconnected.');
     }
   };
 
@@ -145,8 +144,11 @@ export default function Dashboard() {
     <div className="flex flex-col h-screen bg-[#0a0c10] text-foreground p-4 gap-4 overflow-hidden">
       <header className="flex items-center justify-between border-b border-white/5 pb-2">
         <div className="flex items-center gap-3">
-          <div className="bg-primary p-1.5 rounded-sm glow-blue">
-            <Power className="w-5 h-5 text-white" />
+          <div className={cn(
+            "p-1.5 rounded-sm transition-all duration-500",
+            usbConnected ? "bg-cyan-500 neon-connection animate-neon" : "bg-primary glow-blue"
+          )}>
+            <Power className={cn("w-5 h-5", usbConnected ? "text-black" : "text-white")} />
           </div>
           <div>
             <h1 className="text-lg font-black tracking-tighter uppercase leading-none italic">ProPlot <span className="text-primary">CNC</span></h1>
@@ -155,15 +157,16 @@ export default function Dashboard() {
         </div>
         
         <div className="flex items-center gap-4">
-          {usbConnected && (
-            <div className="animate-pulse bg-blue-500/10 border border-blue-500/30 px-3 py-1 rounded text-[9px] font-bold text-blue-400 uppercase">
-              Port Locked by Browser
-            </div>
-          )}
-          <div className="flex items-center gap-2 bg-secondary/40 p-1 rounded-md border border-white/10">
-            <div className="flex items-center gap-2 px-2 text-muted-foreground">
+          <div className={cn(
+            "flex items-center gap-2 p-1 rounded-md border transition-all duration-500",
+            usbConnected ? "bg-cyan-950/40 neon-connection" : "bg-secondary/40 border-white/10"
+          )}>
+            <div className={cn(
+              "flex items-center gap-2 px-2 transition-colors",
+              usbConnected ? "neon-text-blue" : "text-muted-foreground"
+            )}>
               <Usb className="w-3.5 h-3.5" />
-              <span className="text-[10px] font-black uppercase tracking-tighter">Device</span>
+              <span className="text-[10px] font-black uppercase tracking-tighter">Device Bar</span>
             </div>
             <Select value={selectedBoard} onValueChange={setSelectedBoard} disabled={machineState === 'RUN' || usbConnected}>
               <SelectTrigger className="w-[140px] h-8 text-[10px] font-bold bg-black/40 border-none">
@@ -181,7 +184,7 @@ export default function Dashboard() {
               <Button 
                 variant="destructive" 
                 size="sm" 
-                className="h-8 gap-2 text-[10px] font-black uppercase"
+                className="h-8 gap-2 text-[10px] font-black uppercase shadow-[0_0_15px_rgba(239,68,68,0.3)]"
                 onClick={handleDisconnect}
                 disabled={machineState === 'RUN'}
               >
@@ -218,11 +221,11 @@ export default function Dashboard() {
       </header>
 
       {usbConnected && (
-        <Alert className="bg-blue-500/10 border-blue-500/20 text-blue-400 py-2">
+        <Alert className="bg-cyan-500/10 border-cyan-500/20 text-cyan-400 py-2 neon-connection">
           <Info className="h-4 w-4" />
-          <AlertTitle className="text-[10px] font-black uppercase">Firmware Upload Tip</AlertTitle>
+          <AlertTitle className="text-[10px] font-black uppercase">Established Network Active</AlertTitle>
           <AlertDescription className="text-[11px]">
-            If you need to upload new code from Arduino IDE, click <strong>DISCONNECT</strong> first. The IDE cannot access the port while this app is connected.
+            Real-time link established with <strong>ARDUINO {selectedBoard.toUpperCase()}</strong>. Machine coordinates are now live.
           </AlertDescription>
         </Alert>
       )}
@@ -250,9 +253,10 @@ export default function Dashboard() {
           <div className="grid grid-cols-4 gap-4">
             <Button 
               size="lg" 
-              className={`col-span-1 h-14 uppercase font-black tracking-widest text-lg transition-all ${
+              className={cn(
+                "col-span-1 h-14 uppercase font-black tracking-widest text-lg transition-all",
                 machineState === 'RUN' ? 'bg-orange-500 hover:bg-orange-600 glow-orange' : 'bg-green-600 hover:bg-green-500 glow-green'
-              }`}
+              )}
               onClick={machineState === 'RUN' ? () => setMachineState('HOLD') : handleStart}
             >
               {machineState === 'RUN' ? <><Pause className="mr-2" /> Pause</> : <><Play className="mr-2" /> Start</>}
@@ -274,8 +278,8 @@ export default function Dashboard() {
               </div>
               <Progress value={progress} className="h-2 bg-black/40" />
               <div className="flex justify-between items-center mt-1 text-[9px] text-muted-foreground font-medium">
-                <span>FILE: CALIBRATION_V1.GCODE</span>
-                <span>EST: 02:45 LEFT</span>
+                <span>FILE: IDLE</span>
+                <span>EST: --:-- LEFT</span>
               </div>
             </div>
           </div>
@@ -294,17 +298,10 @@ export default function Dashboard() {
               <Button variant="ghost" size="icon" className="h-6 w-6"><Download className="w-4 h-4" /></Button>
             </div>
             <div className="space-y-2">
-              <div className="bg-primary/20 p-2 rounded border border-primary/30 flex items-center justify-between">
-                <div className="flex items-center gap-2 overflow-hidden">
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse shrink-0" />
-                  <span className="text-[10px] font-bold truncate">calib_step_01.nc</span>
-                </div>
-                <span className="text-[8px] bg-primary text-white px-1 rounded">ACTIVE</span>
-              </div>
               <div className="bg-black/20 p-2 rounded border border-white/5 flex items-center justify-between opacity-50">
                 <div className="flex items-center gap-2 truncate">
                   <div className="w-1.5 h-1.5 rounded-full bg-muted shrink-0" />
-                  <span className="text-[10px] font-bold truncate">logo_vector_hires.gcode</span>
+                  <span className="text-[10px] font-bold truncate">No active job</span>
                 </div>
               </div>
             </div>
@@ -326,16 +323,21 @@ export default function Dashboard() {
       <footer className="h-6 bg-secondary border-t border-border flex items-center justify-between px-4 text-[9px] font-bold text-muted-foreground">
         <div className="flex gap-6 items-center">
           <div className="flex items-center gap-2">
-            <div className={`w-1.5 h-1.5 rounded-full ${usbConnected ? 'bg-green-500' : 'bg-red-500'}`} />
-            <span>USB OTG: {usbConnected ? `ARDUINO ${selectedBoard.toUpperCase()}` : 'DISCONNECTED'}</span>
+            <div className={cn(
+              "w-1.5 h-1.5 rounded-full transition-all duration-300",
+              usbConnected ? 'bg-cyan-400 animate-pulse glow-blue' : 'bg-red-500'
+            )} />
+            <span className={usbConnected ? "neon-text-blue" : ""}>
+              USB OTG: {usbConnected ? `ARDUINO ${selectedBoard.toUpperCase()} ACTIVE` : 'DISCONNECTED'}
+            </span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-            <span>X-AXIS FIRMWARE v1.1</span>
+            <span>FIRMWARE v2.0-STEPPER-X</span>
           </div>
         </div>
         <div className="flex gap-4">
-          <span>BUFF: 124/128 lines</span>
+          <span>BUFF: 0/128 lines</span>
           <span>TEMP: 32°C</span>
           <span className="text-foreground font-mono">14:52:12</span>
         </div>
