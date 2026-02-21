@@ -24,8 +24,10 @@ export function JogControls({ mode, onMove }: JogControlsProps) {
   const startMoving = useCallback((axis: string, direction: number) => {
     onMove(axis, direction * stepSize);
 
+    // Initial delay before continuous movement
     intervalRef.current = setTimeout(() => {
       intervalRef.current = setInterval(() => {
+        // Continuous steps are smaller for smoother feel if large steps are selected
         const continuousStep = stepSize > 1 ? stepSize / 5 : stepSize;
         onMove(axis, direction * continuousStep);
       }, 120);
@@ -114,16 +116,17 @@ export function JogControls({ mode, onMove }: JogControlsProps) {
         <div />
       </div>
 
-      <div className="grid grid-cols-2 gap-4 border-t border-white/5 pt-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-white/5 pt-4">
+        {/* Z-Axis Control */}
         <div className="flex flex-col gap-2">
           <div className="flex justify-between items-center h-4">
             <span className="text-[8px] font-black uppercase tracking-widest text-muted-foreground">Tool Height</span>
             <span className="text-[9px] font-code font-bold text-muted-foreground/60 uppercase">Z-Axis</span>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 h-10">
             <Button 
               variant="outline" 
-              className="flex-1 h-11 border-white/10 text-[9px] font-black active-press uppercase tracking-tighter" 
+              className="flex-1 h-full border-white/10 text-[9px] font-black active-press uppercase tracking-tighter" 
               onPointerDown={() => startMoving('Z', 1)}
               onPointerUp={stopMoving}
               onPointerLeave={stopMoving}
@@ -132,7 +135,7 @@ export function JogControls({ mode, onMove }: JogControlsProps) {
             </Button>
             <Button 
               variant="outline" 
-              className="flex-1 h-11 border-white/10 text-[9px] font-black active-press uppercase tracking-tighter" 
+              className="flex-1 h-full border-white/10 text-[9px] font-black active-press uppercase tracking-tighter" 
               onPointerDown={() => startMoving('Z', -1)}
               onPointerUp={stopMoving}
               onPointerLeave={stopMoving}
@@ -142,18 +145,19 @@ export function JogControls({ mode, onMove }: JogControlsProps) {
           </div>
         </div>
         
+        {/* Feed Speed Control */}
         <div className="flex flex-col gap-2">
           <div className="flex justify-between items-center h-4">
             <span className="text-[8px] font-black uppercase tracking-widest text-muted-foreground">Feed Speed</span>
             <span className="text-[10px] font-code font-bold text-cyan-400">{feedRate}</span>
           </div>
-          <div className="flex items-center h-11">
+          <div className="flex items-center h-10 w-full">
             <Slider 
               value={[feedRate]} 
               onValueChange={([v]) => setFeedRate(v)} 
               max={5000} 
               step={100} 
-              className="w-full"
+              className="w-full cursor-pointer"
             />
           </div>
         </div>
