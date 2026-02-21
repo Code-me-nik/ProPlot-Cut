@@ -50,16 +50,10 @@ export default function Dashboard() {
     setLogs(prev => [...prev.slice(-49), { timestamp, type, message }]);
   }, []);
 
-  // Handle incoming serial data
   const handleIncomingData = useCallback((data: string) => {
     addLog('received', data);
-    // Basic logic for parsing GRBL status messages could go here
-    if (data.toLowerCase().includes('ok')) {
-      // Logic for queue processing
-    }
   }, [addLog]);
 
-  // Automatic connection attempt on mount
   useEffect(() => {
     const attemptAutoConnect = async () => {
       const conn = await getExistingPort(handleIncomingData);
@@ -72,26 +66,9 @@ export default function Dashboard() {
     attemptAutoConnect();
   }, [handleIncomingData, addLog]);
 
-  // Simulation of real-time state updates (only if simulated or just for UI feel)
-  useEffect(() => {
-    if (machineState === 'RUN' && !connection) {
-      const interval = setInterval(() => {
-        setProgress(prev => {
-          if (prev >= 100) {
-            setMachineState('IDLE');
-            addLog('received', 'Simulation job complete.');
-            return 100;
-          }
-          return prev + 0.5;
-        });
-      }, 500);
-      return () => clearInterval(interval);
-    }
-  }, [machineState, connection, addLog]);
-
   const handleStart = async () => {
     setMachineState('RUN');
-    const commands = ['$H', 'G21', 'G90', 'G0 X0 Y0 Z0'];
+    const commands = ['G21', 'G90', 'G0 X0'];
     
     if (connection) {
       for (const cmd of commands) {
@@ -99,8 +76,7 @@ export default function Dashboard() {
         addLog('sent', cmd);
       }
     } else {
-      addLog('sent', '$H (Homing Simulated)');
-      addLog('received', 'ok');
+      addLog('sent', 'Simulation sequence started');
     }
   };
 
@@ -108,23 +84,27 @@ export default function Dashboard() {
     setMachineState('IDLE');
     setProgress(0);
     if (connection) {
-      await connection.send('!'); // GRBL Feed Hold
-      await connection.send('M5'); // Stop spindle/pen
-      addLog('sent', '! (Feed Hold)');
+      await connection.send('STOP');
+      addLog('sent', 'STOP (E-Stop Command)');
     }
     addLog('warning', 'Machine stopped by user.');
   };
 
   const handleMove = async (axis: string, amount: number) => {
-    if (machineState !== 'IDLE') return;
-    const gcode = `G91 G0 ${axis}${amount}`;
+    if (machineState !== 'IDLE' && machineState !== 'HOLD') return;
+    
+    // Simplifed command for basic Arduino parsing: "X10" or "X-10"
+    const command = `${axis}${amount}`;
     
     if (connection) {
-      await connection.send(gcode);
+      await connection.send(command);
     }
     
-    addLog('sent', gcode);
-    setPos(prev => ({ ...prev, [axis.toLowerCase()]: prev[axis.toLowerCase() as keyof typeof prev] + amount }));
+    addLog('sent', command);
+    setPos(prev => ({ 
+      ...prev, 
+      [axis.toLowerCase()]: prev[axis.toLowerCase() as keyof typeof prev] + amount 
+    }));
     
     if (!connection) {
       addLog('received', 'ok (simulated)');
@@ -162,7 +142,6 @@ export default function Dashboard() {
 
   return (
     <div className="flex flex-col h-screen bg-[#0a0c10] text-foreground p-4 gap-4 overflow-hidden">
-      {/* Header Bar */}
       <header className="flex items-center justify-between border-b border-white/5 pb-2">
         <div className="flex items-center gap-3">
           <div className="bg-primary p-1.5 rounded-sm glow-blue">
@@ -175,7 +154,6 @@ export default function Dashboard() {
         </div>
         
         <div className="flex items-center gap-4">
-          {/* Arduino Selection & Connect */}
           <div className="flex items-center gap-2 bg-secondary/40 p-1 rounded-md border border-white/10">
             <div className="flex items-center gap-2 px-2 text-muted-foreground">
               <Usb className="w-3.5 h-3.5" />
@@ -233,17 +211,13 @@ export default function Dashboard() {
         </div>
       </header>
 
-      {/* Main Grid */}
       <div className="flex-1 grid grid-cols-12 gap-4 min-h-0">
-        
-        {/* Left Column - Controls */}
         <div className="col-span-3 flex flex-col gap-4 overflow-y-auto pr-1">
           <ModeSwitcher currentMode={mode} onModeChange={setMode} disabled={machineState === 'RUN'} />
           <JogControls mode={mode} onMove={handleMove} />
           <PrecisionTestPanel onGenerated={handleGenTest} />
         </div>
 
-        {/* Center Column - Visualization & Status */}
         <div className="col-span-6 flex flex-col gap-4">
           <StatusMonitor 
             x={pos.x} 
@@ -257,7 +231,6 @@ export default function Dashboard() {
             <ToolpathRenderer currentPath="" completedLines={0} />
           </div>
           
-          {/* Main Action Bar */}
           <div className="grid grid-cols-4 gap-4">
             <Button 
               size="lg" 
@@ -292,7 +265,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Right Column - Console & Files */}
         <div className="col-span-3 flex flex-col gap-4 overflow-y-auto pl-1">
           <div className="flex-1 min-h-[300px]">
             <MachineConsole logs={logs} />
@@ -319,12 +291,6 @@ export default function Dashboard() {
                   <span className="text-[10px] font-bold truncate">logo_vector_hires.gcode</span>
                 </div>
               </div>
-              <div className="bg-black/20 p-2 rounded border border-white/5 flex items-center justify-between opacity-50">
-                <div className="flex items-center gap-2 truncate">
-                  <div className="w-1.5 h-1.5 rounded-full bg-muted shrink-0" />
-                  <span className="text-[10px] font-bold truncate">bracket_l_support.tap</span>
-                </div>
-              </div>
             </div>
             <Button variant="outline" className="w-full mt-4 h-8 text-[10px] uppercase font-black border-dashed">
               + Load New Job
@@ -341,7 +307,6 @@ export default function Dashboard() {
         </div>
       </div>
       
-      {/* Footer Status Bar */}
       <footer className="h-6 bg-secondary border-t border-border flex items-center justify-between px-4 text-[9px] font-bold text-muted-foreground">
         <div className="flex gap-6 items-center">
           <div className="flex items-center gap-2">
@@ -350,11 +315,7 @@ export default function Dashboard() {
           </div>
           <div className="flex items-center gap-2">
             <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-            <span>GRBL v1.1H</span>
-          </div>
-          <div className="flex items-center gap-2">
-             <span className="text-primary uppercase">Cutter/Pen:</span>
-             <span className="text-foreground">LIFTED</span>
+            <span>X-AXIS FIRMWARE v1.0</span>
           </div>
         </div>
         <div className="flex gap-4">
