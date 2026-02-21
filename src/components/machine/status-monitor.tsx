@@ -28,56 +28,61 @@ export function StatusMonitor({ x, y, z, state, usbConnected, mode }: StatusMoni
 
   const getModeDisplay = () => {
     switch(mode) {
-      case 'PLOTTER': return 'PLOTTER';
-      case 'STICKER': return 'STICKER CUT';
-      case 'VINYL': return 'VINYL CUT';
+      case 'PLOTTER': return 'PLOT';
+      case 'STICKER': return 'STICKER';
+      case 'VINYL': return 'VINYL';
       default: return mode;
     }
   }
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full p-4 bg-secondary/80 rounded-lg border border-primary/30 glow-blue">
-      <div className="flex flex-col gap-1">
-        <div className="flex items-center gap-2 text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">
-          <Link2 className="w-3 h-3" /> Connection
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 w-full p-3 bg-secondary/60 rounded-lg border border-primary/20 shadow-[0_0_15px_rgba(63,81,181,0.1)]">
+      <div className="flex flex-col gap-0.5 min-w-0">
+        <div className="flex items-center gap-1.5 text-[8px] text-muted-foreground uppercase font-black tracking-widest">
+          <Link2 className="w-2.5 h-2.5" /> LINK
         </div>
         <div className="flex items-center gap-2">
-          <div className={`w-2 h-2 rounded-full ${usbConnected ? 'bg-green-500 glow-green' : 'bg-red-500'}`} />
-          <span className="text-sm font-bold">{usbConnected ? 'GRBL 1.1h Ready' : 'Disconnected'}</span>
+          <div className={cn(
+            "w-2 h-2 rounded-full",
+            usbConnected ? 'bg-green-500 animate-pulse glow-green' : 'bg-red-500'
+          )} />
+          <span className="text-xs font-black truncate">{usbConnected ? 'GRBL 1.1h' : 'NO CONN'}</span>
         </div>
       </div>
 
-      <div className="flex flex-col gap-1">
-        <div className="flex items-center gap-2 text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">
-          <Activity className="w-3 h-3" /> Machine State
+      <div className="flex flex-col gap-0.5 min-w-0">
+        <div className="flex items-center gap-1.5 text-[8px] text-muted-foreground uppercase font-black tracking-widest">
+          <Activity className="w-2.5 h-2.5" /> STATE
         </div>
-        <div className="flex items-center gap-2">
-          <Badge className={`${getStatusColor()} border-none text-white px-3 py-0 text-[10px] font-black`}>
+        <div className="flex items-center gap-1.5">
+          <Badge className={`${getStatusColor()} border-none text-white px-1.5 py-0 text-[9px] font-black h-4`}>
             {state}
           </Badge>
-          <span className="text-[10px] font-bold text-primary italic uppercase">{getModeDisplay()}</span>
+          <span className="text-[9px] font-black text-primary truncate uppercase">{getModeDisplay()}</span>
         </div>
       </div>
 
-      <div className="flex flex-col gap-1 col-span-2">
-        <div className="flex items-center gap-2 text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">
-          <Cpu className="w-3 h-3" /> Machine Coordinates
+      <div className="flex flex-col gap-0.5 col-span-2 min-w-0">
+        <div className="flex items-center gap-1.5 text-[8px] text-muted-foreground uppercase font-black tracking-widest">
+          <Cpu className="w-2.5 h-2.5" /> COORDINATES
         </div>
-        <div className="flex gap-4 items-baseline">
+        <div className="flex gap-3 items-center overflow-x-auto">
           <div className="flex items-baseline gap-1">
-            <span className="text-xs font-black text-primary">X</span>
-            <span className="text-xl font-code font-bold tracking-tight">{x.toFixed(3)}</span>
+            <span className="text-[10px] font-black text-primary">X</span>
+            <span className="text-sm font-code font-bold tabular-nums">{x.toFixed(2)}</span>
           </div>
           <div className="flex items-baseline gap-1">
-            <span className="text-xs font-black text-primary">Y</span>
-            <span className="text-xl font-code font-bold tracking-tight">{y.toFixed(3)}</span>
+            <span className="text-[10px] font-black text-primary">Y</span>
+            <span className="text-sm font-code font-bold tabular-nums">{y.toFixed(2)}</span>
           </div>
           <div className="flex items-baseline gap-1">
-            <span className="text-xs font-black text-primary">Z</span>
-            <span className="text-xl font-code font-bold tracking-tight">{z.toFixed(3)}</span>
+            <span className="text-[10px] font-black text-primary">Z</span>
+            <span className="text-sm font-code font-bold tabular-nums">{z.toFixed(2)}</span>
           </div>
         </div>
       </div>
     </div>
   )
 }
+
+import { cn } from "@/lib/utils"
