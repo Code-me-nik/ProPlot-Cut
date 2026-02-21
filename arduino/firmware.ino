@@ -1,64 +1,77 @@
 
 /**
- * ProPlot CNC - Basic X-Axis Controller
- * Hardware: Arduino Uno + CNC Shield V3.0
+ * ProPlot CNC - Basic X-Axis Firmware
+ * Optimized for Arduino Uno + CNC Shield
  */
 
-// CNC Shield V3.0 Pin Definitions
-#define EN        8       // Stepper enable (active low)
-#define X_STEP    2       // X-axis step
-#define X_DIR     5       // X-axis direction
+// CNC Shield Pin Definitions
+const int EN_PIN = 8;    // Enable pin (Active LOW)
+const int X_STEP = 2;    // X-axis Step pin
+const int X_DIR = 5;     // X-axis Direction pin
 
-// Change this based on your motor and driver settings
-// Standard A4988/DRV8825 with 1/16 microstepping is usually ~80-100 steps per mm
-const int STEPS_PER_UNIT = 80; 
+// Motor Configuration
+const int STEPS_PER_MM = 80; // Standard for GT2 belt with 20T pulley
+int feedRate = 1000;         // Default feed rate (speed)
 
 void setup() {
-  pinMode(EN, OUTPUT);
+  Serial.begin(115200);
+  
+  // Initialize pins
+  pinMode(EN_PIN, OUTPUT);
   pinMode(X_STEP, OUTPUT);
   pinMode(X_DIR, OUTPUT);
   
-  // Enable the motors (LOW = ON)
-  digitalWrite(EN, LOW); 
+  // IMPORTANT: Disable drivers initially to stop humming/heat
+  // HIGH = Disabled, LOW = Enabled
+  digitalWrite(EN_PIN, HIGH); 
   
-  // Start Serial communication
-  Serial.begin(115200);
-  Serial.println("ProPlot CNC X-Axis Ready");
-}
-
-/**
- * Move the stepper motor
- * @param dir true for clockwise/forward, false for counter-clockwise/backward
- * @param steps number of pulses to send
- */
-void performSteps(boolean dir, int steps) {
-  digitalWrite(X_DIR, dir);
-  for (int i = 0; i < steps; i++) {
-    digitalWrite(X_STEP, HIGH);
-    delayMicroseconds(800); // Speed control (lower is faster)
-    digitalWrite(X_STEP, LOW);
-    delayMicroseconds(800);
-  }
+  Serial.println("PROPLOT CNC READY - IDLE POWER SAVING ACTIVE");
 }
 
 void loop() {
   if (Serial.available() > 0) {
-    // Read command until newline
-    String cmd = Serial.readStringUntil('\n');
-    cmd.trim();
-    
-    // Simple Parser for "X10" or "X-10"
-    if (cmd.startsWith("X")) {
-      float distance = cmd.substring(1).toFloat();
-      
-      if (distance > 0) {
-        performSteps(true, (int)(distance * STEPS_PER_UNIT));
-      } else if (distance < 0) {
-        performSteps(false, (int)(abs(distance) * STEPS_PER_UNIT));
-      }
-      
-      // Crucial: Reply 'ok' so the web app knows we finished
+    String command = Serial.readStringUntil('\n');
+    command.trim();
+    command.toUpperCase();
+
+    if (command.startsWith("X")) {
+      float target = command.substring(1).toFloat();
+      moveX(target);
+    } 
+    else if (command.equals("G21 G90")) {
       Serial.println("ok");
     }
   }
+}
+
+/**
+ * Moves the X-axis stepper motor
+ */
+void moveX(float distance) {
+  // 1. Enable the stepper driver (Stops the SSSSSS sound/humming by powering up)
+  digitalWrite(EN_PIN, LOW);
+  delay(1); // Small delay to let electronics stabilize
+  
+  // 2. Set direction
+  digitalWrite(X_DIR, distance > 0 ? HIGH : LOW);
+  
+  // 3. Calculate steps
+  long steps = abs(distance) * STEPS_PER_MM;
+  
+  // 4. Execute movement
+  // Calculate pulse delay from feedRate (approximate)
+  long pulseDelay = 1000000L / (feedRate / 60.0 * STEPS_PER_MM);
+  
+  for (long i = 0; i < steps; i++) {
+    digitalWrite(X_STEP, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(X_STEP, LOW);
+    delayMicroseconds(pulseDelay / 2);
+  }
+  
+  // 5. IMPORTANT: Disable driver after move is complete
+  // This cuts current to the motor, stopping the heat and noise
+  digitalWrite(EN_PIN, HIGH);
+  
+  Serial.println("ok");
 }
