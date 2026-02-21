@@ -9,7 +9,26 @@ import { ModeSwitcher } from '@/components/machine/mode-switcher'
 import { PrecisionTestPanel } from '@/components/test/precision-test-panel'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
-import { Play, Pause, Square, Power, Download, HelpCircle, FileText, AlertTriangle } from 'lucide-react'
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from '@/components/ui/select'
+import { 
+  Play, 
+  Pause, 
+  Square, 
+  Power, 
+  Download, 
+  HelpCircle, 
+  FileText, 
+  AlertTriangle,
+  Usb,
+  RefreshCw,
+  Search
+} from 'lucide-react'
 
 export type MachineMode = 'PLOTTER' | 'STICKER' | 'VINYL';
 
@@ -19,6 +38,8 @@ export default function Dashboard() {
   const [pos, setPos] = useState({ x: 0, y: 0, z: 0 });
   const [progress, setProgress] = useState(0);
   const [usbConnected, setUsbConnected] = useState(true);
+  const [selectedBoard, setSelectedBoard] = useState('uno');
+  const [isScanning, setIsScanning] = useState(false);
   const [logs, setLogs] = useState<{ timestamp: string, type: 'sent' | 'received' | 'error' | 'warning', message: string }[]>([]);
 
   // Simulation of real-time state updates
@@ -75,6 +96,18 @@ export default function Dashboard() {
     addLog('received', 'Custom test G-Code loaded.');
   };
 
+  const handleScanDevices = () => {
+    setIsScanning(true);
+    addLog('sent', 'Scanning for Arduino devices...');
+    
+    // Simulate scan delay
+    setTimeout(() => {
+      setIsScanning(false);
+      setUsbConnected(true);
+      addLog('received', `Found Arduino ${selectedBoard.toUpperCase()} on /dev/ttyUSB0`);
+    }, 2000);
+  };
+
   return (
     <div className="flex flex-col h-screen bg-[#0a0c10] text-foreground p-4 gap-4 overflow-hidden">
       {/* Header Bar */}
@@ -90,6 +123,36 @@ export default function Dashboard() {
         </div>
         
         <div className="flex items-center gap-4">
+          {/* Arduino Selection & Scan */}
+          <div className="flex items-center gap-2 bg-secondary/40 p-1 rounded-md border border-white/10">
+            <div className="flex items-center gap-2 px-2 text-muted-foreground">
+              <Usb className="w-3.5 h-3.5" />
+              <span className="text-[10px] font-black uppercase tracking-tighter">Device</span>
+            </div>
+            <Select value={selectedBoard} onValueChange={setSelectedBoard} disabled={machineState === 'RUN'}>
+              <SelectTrigger className="w-[140px] h-8 text-[10px] font-bold bg-black/40 border-none">
+                <SelectValue placeholder="Select Board" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="uno">Arduino Uno</SelectItem>
+                <SelectItem value="mega">Arduino Mega 2560</SelectItem>
+                <SelectItem value="nano">Arduino Nano</SelectItem>
+                <SelectItem value="leonardo">Arduino Leonardo</SelectItem>
+                <SelectItem value="esp32">ESP32 Dev Module</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-8 gap-2 text-[10px] font-black uppercase hover:bg-primary/20"
+              onClick={handleScanDevices}
+              disabled={isScanning || machineState === 'RUN'}
+            >
+              {isScanning ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
+              {isScanning ? 'Scanning...' : 'Scan'}
+            </Button>
+          </div>
+
           <div className="flex items-center gap-4 bg-secondary/80 px-4 py-1.5 rounded-full border border-white/5">
              <div className="flex flex-col items-center">
                 <span className="text-[9px] text-muted-foreground uppercase font-black">Memory</span>
@@ -217,8 +280,8 @@ export default function Dashboard() {
       <footer className="h-6 bg-secondary border-t border-border flex items-center justify-between px-4 text-[9px] font-bold text-muted-foreground">
         <div className="flex gap-6 items-center">
           <div className="flex items-center gap-2">
-            <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-            <span>USB OTG: ATMEGA328P</span>
+            <div className={`w-1.5 h-1.5 rounded-full ${usbConnected ? 'bg-green-500' : 'bg-red-500'}`} />
+            <span>USB OTG: {usbConnected ? `ARDUINO ${selectedBoard.toUpperCase()}` : 'DISCONNECTED'}</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
