@@ -1,78 +1,64 @@
+
 /**
- * ProPlot CNC - Single Axis Controller
+ * ProPlot CNC - Basic X-Axis Controller
  * Hardware: Arduino Uno + CNC Shield V3.0
- * Axis: X-Axis only
  */
 
-// CNC Shield Pin Definitions
-#define EN        8       // Stepper motors enable, active low
-#define X_DIR     5       // X-axis direction control
-#define X_STP     2       // X-axis step control
+// CNC Shield V3.0 Pin Definitions
+#define EN        8       // Stepper enable (active low)
+#define X_STEP    2       // X-axis step
+#define X_DIR     5       // X-axis direction
 
-// Configuration
-const int stepsPerUnit = 100; // Multiplier to make small web units visible (adjust as needed)
-const int stepDelay = 500;    // Microseconds between pulses (smaller = faster)
+// Change this based on your motor and driver settings
+// Standard A4988/DRV8825 with 1/16 microstepping is usually ~80-100 steps per mm
+const int STEPS_PER_UNIT = 80; 
 
 void setup() {
-  // Set pin modes
-  pinMode(X_DIR, OUTPUT); 
-  pinMode(X_STP, OUTPUT);
   pinMode(EN, OUTPUT);
+  pinMode(X_STEP, OUTPUT);
+  pinMode(X_DIR, OUTPUT);
   
-  // Enable the stepper drivers (Low = Enabled)
-  digitalWrite(EN, LOW);
+  // Enable the motors (LOW = ON)
+  digitalWrite(EN, LOW); 
   
-  // Initialize Serial at the baud rate defined in the web app
+  // Start Serial communication
   Serial.begin(115200);
-  Serial.println("PROPLOT_X_AXIS_ONLINE");
+  Serial.println("ProPlot CNC X-Axis Ready");
+}
+
+/**
+ * Move the stepper motor
+ * @param dir true for clockwise/forward, false for counter-clockwise/backward
+ * @param steps number of pulses to send
+ */
+void performSteps(boolean dir, int steps) {
+  digitalWrite(X_DIR, dir);
+  for (int i = 0; i < steps; i++) {
+    digitalWrite(X_STEP, HIGH);
+    delayMicroseconds(800); // Speed control (lower is faster)
+    digitalWrite(X_STEP, LOW);
+    delayMicroseconds(800);
+  }
 }
 
 void loop() {
-  // Check if data is available from the web app
   if (Serial.available() > 0) {
-    // Read the incoming command (e.g., "X10" or "X-10")
-    String command = Serial.readStringUntil('\n');
-    command.trim();
+    // Read command until newline
+    String cmd = Serial.readStringUntil('\n');
+    cmd.trim();
     
-    if (command.length() > 0) {
-      // Logic for X-axis commands
-      if (command.startsWith("X")) {
-        // Extract the numeric value after 'X'
-        float val = command.substring(1).toFloat();
-        long stepsToMove = (long)(val * stepsPerUnit);
-        
-        moveStepper(stepsToMove);
-        
-        // Return "ok" to the web app console to confirm execution
-        Serial.println("ok");
-      } else {
-        // Echo unknown commands for debugging
-        Serial.print("UNKNOWN_CMD: ");
-        Serial.println(command);
+    // Simple Parser for "X10" or "X-10"
+    if (cmd.startsWith("X")) {
+      float distance = cmd.substring(1).toFloat();
+      
+      if (distance > 0) {
+        performSteps(true, (int)(distance * STEPS_PER_UNIT));
+      } else if (distance < 0) {
+        performSteps(false, (int)(abs(distance) * STEPS_PER_UNIT));
       }
+      
+      // Crucial: Reply 'ok' so the web app knows we finished
+      Serial.println("ok");
     }
-  }
-}
-
-/**
- * Moves the X-axis stepper motor
- * @param steps Number of steps (positive for forward, negative for backward)
- */
-void moveStepper(long steps) {
-  // Set direction
-  if (steps > 0) {
-    digitalWrite(X_DIR, HIGH);
-  } else {
-    digitalWrite(X_DIR, LOW);
-  }
-  
-  long absSteps = abs(steps);
-  
-  // Pulse the step pin
-  for (long i = 0; i < absSteps; i++) {
-    digitalWrite(X_STP, HIGH);
-    delayMicroseconds(stepDelay);
-    digitalWrite(X_STP, LOW);
-    delayMicroseconds(stepDelay);
   }
 }

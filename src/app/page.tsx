@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useEffect, useCallback } from 'react'
@@ -28,9 +29,11 @@ import {
   Usb,
   RefreshCw,
   Search,
-  Unlink
+  Unlink,
+  Info
 } from 'lucide-react'
 import { connectToArduino, getExistingPort, ArduinoConnection } from '@/lib/arduino-connection'
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 export type MachineMode = 'PLOTTER' | 'STICKER' | 'VINYL';
 
@@ -93,24 +96,20 @@ export default function Dashboard() {
   const handleMove = async (axis: string, amount: number) => {
     if (machineState !== 'IDLE' && machineState !== 'HOLD') return;
     
-    // Simplifed command for basic Arduino parsing: "X10" or "X-10"
     const command = `${axis}${amount}`;
     
     if (connection) {
       await connection.send(command);
+      addLog('sent', command);
+    } else {
+      addLog('sent', `${command} (SIMULATED)`);
+      addLog('received', 'ok (simulated)');
     }
     
-    addLog('sent', command);
-    
-    // Optimistic UI update
     setPos(prev => ({ 
       ...prev, 
       [axis.toLowerCase()]: prev[axis.toLowerCase() as keyof typeof prev] + amount 
     }));
-    
-    if (!connection) {
-      addLog('received', 'ok (simulated)');
-    }
   };
 
   const handleGenTest = (gcode: string) => {
@@ -138,7 +137,7 @@ export default function Dashboard() {
       await connection.disconnect();
       setConnection(null);
       setUsbConnected(false);
-      addLog('warning', 'Serial port disconnected.');
+      addLog('warning', 'Serial port disconnected. Arduino IDE is now free to upload.');
     }
   };
 
@@ -156,6 +155,11 @@ export default function Dashboard() {
         </div>
         
         <div className="flex items-center gap-4">
+          {usbConnected && (
+            <div className="animate-pulse bg-blue-500/10 border border-blue-500/30 px-3 py-1 rounded text-[9px] font-bold text-blue-400 uppercase">
+              Port Locked by Browser
+            </div>
+          )}
           <div className="flex items-center gap-2 bg-secondary/40 p-1 rounded-md border border-white/10">
             <div className="flex items-center gap-2 px-2 text-muted-foreground">
               <Usb className="w-3.5 h-3.5" />
@@ -212,6 +216,16 @@ export default function Dashboard() {
           <Button variant="ghost" size="icon" className="text-muted-foreground"><HelpCircle className="w-5 h-5" /></Button>
         </div>
       </header>
+
+      {usbConnected && (
+        <Alert className="bg-blue-500/10 border-blue-500/20 text-blue-400 py-2">
+          <Info className="h-4 w-4" />
+          <AlertTitle className="text-[10px] font-black uppercase">Firmware Upload Tip</AlertTitle>
+          <AlertDescription className="text-[11px]">
+            If you need to upload new code from Arduino IDE, click <strong>DISCONNECT</strong> first. The IDE cannot access the port while this app is connected.
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="flex-1 grid grid-cols-12 gap-4 min-h-0">
         <div className="col-span-3 flex flex-col gap-4 overflow-y-auto pr-1">
@@ -317,7 +331,7 @@ export default function Dashboard() {
           </div>
           <div className="flex items-center gap-2">
             <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-            <span>X-AXIS FIRMWARE v1.0</span>
+            <span>X-AXIS FIRMWARE v1.1</span>
           </div>
         </div>
         <div className="flex gap-4">
