@@ -98,6 +98,13 @@ export default function Dashboard() {
           }
           return prev + 0.5;
         });
+        
+        // Simulate movement during RUN for preview
+        setPos(prev => ({
+          ...prev,
+          x: prev.x + (Math.random() - 0.5) * 2,
+          y: prev.y + (Math.random() - 0.5) * 2
+        }));
       }, 500);
     } else {
       if (progressInterval.current) clearInterval(progressInterval.current);
@@ -275,7 +282,7 @@ export default function Dashboard() {
               <div className="col-span-6 flex flex-col gap-4 h-full">
                 <StatusMonitor x={pos.x} y={pos.y} z={pos.z} state={machineState} usbConnected={usbConnected} mode={mode} />
                 <div className="flex-1 min-h-0 glass-panel rounded-lg overflow-hidden shadow-2xl relative">
-                  <ToolpathRenderer currentPath="" completedLines={0} progress={progress} />
+                  <ToolpathRenderer currentPath="" completedLines={0} progress={progress} x={pos.x} y={pos.y} />
                 </div>
                 <div className="grid grid-cols-2 gap-4 shrink-0">
                   <Button size="lg" className={cn(
@@ -304,7 +311,7 @@ export default function Dashboard() {
               <TabsContent value="dashboard" className="flex-1 m-0 flex flex-col gap-3 p-3 overflow-hidden">
                 <StatusMonitor x={pos.x} y={pos.y} z={pos.z} state={machineState} usbConnected={usbConnected} mode={mode} />
                 <div className="flex-1 min-h-0 glass-panel rounded-lg overflow-hidden relative shadow-2xl">
-                  <ToolpathRenderer currentPath="" completedLines={0} progress={progress} />
+                  <ToolpathRenderer currentPath="" completedLines={0} progress={progress} x={pos.x} y={pos.y} />
                 </div>
                 <div className="grid grid-cols-2 gap-2 shrink-0 pb-safe">
                    <Button className={cn("h-14 uppercase font-black border-none text-[12px] tracking-widest", machineState === 'RUN' ? 'bg-orange-600' : 'bg-emerald-600 shadow-lg')} onClick={handleStart}>

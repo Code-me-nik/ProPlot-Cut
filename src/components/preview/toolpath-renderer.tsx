@@ -10,14 +10,36 @@ interface ToolpathRendererProps {
   currentPath: string;
   completedLines: number;
   progress: number; // 0 to 100
+  x: number;
+  y: number;
 }
 
-export function ToolpathRenderer({ currentPath, completedLines, progress }: ToolpathRendererProps) {
+export function ToolpathRenderer({ currentPath, completedLines, progress, x, y }: ToolpathRendererProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [zoom, setZoom] = useState(1);
+  const [zoom, setZoom] = useState(2);
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [pathHistory, setPathHistory] = useState<{x: number, y: number}[]>([]);
+
+  // Update path history when coordinates change
+  useEffect(() => {
+    setPathHistory(prev => {
+      // Avoid duplicate points
+      if (prev.length > 0) {
+        const last = prev[prev.length - 1];
+        if (last.x === x && last.y === y) return prev;
+      }
+      return [...prev.slice(-1000), { x, y }]; // Keep last 1000 points
+    });
+  }, [x, y]);
+
+  // Reset path history if progress is reset to 0
+  useEffect(() => {
+    if (progress === 0) {
+      setPathHistory([]);
+    }
+  }, [progress]);
 
   // Handle Resize and Fullscreen state
   useEffect(() => {
@@ -69,64 +91,73 @@ export function ToolpathRenderer({ currentPath, completedLines, progress }: Tool
     const draw = () => {
       ctx.clearRect(0, 0, size.width, size.height);
       
+      const centerX = size.width / 2;
+      const centerY = size.height / 2;
+
       // Draw Grid
       ctx.strokeStyle = '#1a1a1a';
       ctx.lineWidth = 0.5;
       const step = 25 * zoom;
-      for (let i = 0; i < size.width; i += step) {
+      
+      // Vertical grid lines
+      for (let i = centerX % step; i < size.width; i += step) {
         ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, size.height); ctx.stroke();
       }
-      for (let i = 0; i < size.height; i += step) {
+      // Horizontal grid lines
+      for (let i = centerY % step; i < size.height; i += step) {
         ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(size.width, i); ctx.stroke();
       }
 
-      // Origin Lines
-      ctx.strokeStyle = '#2a2a2a';
-      ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(size.width/2, 0); ctx.lineTo(size.width/2, size.height); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(0, size.height/2); ctx.lineTo(size.width, size.height/2); ctx.stroke();
-
-      // Toolpath simulation
-      const centerX = size.width / 2;
-      const centerY = size.height / 2;
-      const radius = 80 * zoom;
-
-      // Planned path
+      // Origin Axis Lines
       ctx.strokeStyle = '#333';
-      ctx.setLineDash([5, 5]);
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.setLineDash([]);
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(centerX, 0); ctx.lineTo(centerX, size.height); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, centerY); ctx.lineTo(size.width, centerY); ctx.stroke();
 
-      // Completed Path
-      if (progress > 0) {
+      // Toolpath Drawing (History)
+      if (pathHistory.length > 1) {
         ctx.strokeStyle = '#00ff00';
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = 'rgba(0,255,0,0.4)';
-        ctx.lineWidth = 3;
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = 'rgba(0,255,0,0.5)';
+        ctx.lineWidth = 2;
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
         ctx.beginPath();
-        ctx.arc(centerX, centerY, radius, 0, (Math.PI * 2) * (progress / 100));
+        
+        const startX = centerX + pathHistory[0].x * zoom;
+        const startY = centerY - pathHistory[0].y * zoom; // Invert Y for CNC coordinates
+        ctx.moveTo(startX, startY);
+
+        for (let i = 1; i < pathHistory.length; i++) {
+          const px = centerX + pathHistory[i].x * zoom;
+          const py = centerY - pathHistory[i].y * zoom;
+          ctx.lineTo(px, py);
+        }
         ctx.stroke();
         ctx.shadowBlur = 0;
       }
 
-      // Tool Head
-      const currentAngle = (Math.PI * 2) * (progress / 100);
-      const toolX = centerX + radius * Math.cos(currentAngle);
-      const toolY = centerY + radius * Math.sin(currentAngle);
+      // Tool Head (Red Dot)
+      const toolX = centerX + x * zoom;
+      const toolY = centerY - y * zoom;
 
       ctx.fillStyle = '#ff0000';
-      ctx.shadowBlur = 15;
-      ctx.shadowColor = 'rgba(255,0,0,0.8)';
+      ctx.shadowBlur = 20;
+      ctx.shadowColor = 'rgba(255,0,0,1)';
       ctx.beginPath();
-      ctx.arc(toolX, toolY, 5, 0, Math.PI * 2);
+      ctx.arc(toolX, toolY, 6, 0, Math.PI * 2);
       ctx.fill();
+      
+      // Crosshair for tool head
+      ctx.strokeStyle = '#ff0000';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(toolX - 10, toolY); ctx.lineTo(toolX + 10, toolY); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(toolX, toolY - 10); ctx.lineTo(toolX, toolY + 10); ctx.stroke();
+      ctx.shadowBlur = 0;
     };
 
     draw();
-  }, [zoom, size, progress, currentPath, completedLines]);
+  }, [zoom, size, x, y, pathHistory]);
 
   return (
     <div 
@@ -150,14 +181,18 @@ export function ToolpathRenderer({ currentPath, completedLines, progress }: Tool
             <span className="text-[10px] sm:text-xs font-code font-bold text-primary">{progress.toFixed(1)}%</span>
           </div>
           <div className="flex items-center gap-2">
+             <div className="flex items-center gap-3 mr-4">
+                <span className="text-[9px] font-bold text-muted-foreground">X: <span className="text-white font-mono">{x.toFixed(2)}</span></span>
+                <span className="text-[9px] font-bold text-muted-foreground">Y: <span className="text-white font-mono">{y.toFixed(2)}</span></span>
+             </div>
             <span className="text-[8px] sm:text-[9px] font-bold text-green-500/80 animate-pulse">● LIVE FEED</span>
           </div>
         </div>
       </div>
 
       <div className="absolute top-12 left-2 flex flex-col gap-1 z-10 transition-opacity opacity-40 group-hover:opacity-100">
-        <Button variant="secondary" size="icon" className="h-8 w-8 bg-background/80" onClick={() => setZoom(z => z + 0.2)}><ZoomIn className="w-4 h-4" /></Button>
-        <Button variant="secondary" size="icon" className="h-8 w-8 bg-background/80" onClick={() => setZoom(z => Math.max(0.5, z - 0.2))}><ZoomOut className="w-4 h-4" /></Button>
+        <Button variant="secondary" size="icon" className="h-8 w-8 bg-background/80" onClick={() => setZoom(z => z + 0.5)}><ZoomIn className="w-4 h-4" /></Button>
+        <Button variant="secondary" size="icon" className="h-8 w-8 bg-background/80" onClick={() => setZoom(z => Math.max(0.5, z - 0.5))}><ZoomOut className="w-4 h-4" /></Button>
         <Button variant="secondary" size="icon" className="h-8 w-8 bg-background/80" onClick={toggleFullscreen}>
           {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
         </Button>
