@@ -4,6 +4,7 @@ import React, { useState, useRef, useCallback } from 'react'
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
 import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, ArrowUpRight, ArrowUpLeft, RotateCcw, Zap } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 export type MachineMode = 'PLOTTER' | 'STICKER' | 'VINYL';
 
@@ -20,16 +21,14 @@ export function JogControls({ mode, onMove }: JogControlsProps) {
   const steps = [0.1, 1, 10, 50];
 
   const startMoving = useCallback((axis: string, direction: number) => {
-    // Initial move on press
     onMove(axis, direction * stepSize);
 
-    // After a delay, start continuous small steps
     intervalRef.current = setTimeout(() => {
       intervalRef.current = setInterval(() => {
         const continuousStep = stepSize > 1 ? stepSize / 5 : stepSize;
         onMove(axis, direction * continuousStep);
-      }, 100);
-    }, 300); 
+      }, 120);
+    }, 350); 
   }, [onMove, stepSize]);
 
   const stopMoving = useCallback(() => {
@@ -41,19 +40,20 @@ export function JogControls({ mode, onMove }: JogControlsProps) {
   }, []);
 
   return (
-    <div className="flex flex-col gap-3 p-3 sm:p-4 bg-secondary/50 rounded-lg border border-border/50">
-      <div className="flex items-center justify-between mb-1">
-        <h3 className="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-          <Zap className="w-3 h-3" /> Manual Control (JOG)
+    <div className="flex flex-col gap-4 p-4 bg-secondary/30 rounded-lg border border-white/5 shadow-xl">
+      <div className="flex items-center justify-between">
+        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+          <Zap className="w-3.5 h-3.5" /> Manual Jog
         </h3>
-        <div className="flex bg-muted rounded-sm p-0.5">
+        <div className="flex bg-black/40 rounded-sm p-1 gap-1">
           {steps.map((s) => (
             <button
               key={s}
               onClick={() => setStepSize(s)}
-              className={`px-1.5 sm:px-2.5 py-1 text-[9px] sm:text-[10px] font-bold rounded-sm transition-colors ${
-                stepSize === s ? "bg-primary text-white" : "hover:text-foreground text-muted-foreground"
-              }`}
+              className={cn(
+                "px-2 py-1 text-[9px] font-black rounded-sm transition-all active-press",
+                stepSize === s ? "bg-primary text-white shadow-lg" : "text-muted-foreground hover:text-white"
+              )}
             >
               {s}
             </button>
@@ -61,7 +61,7 @@ export function JogControls({ mode, onMove }: JogControlsProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-2 max-w-[180px] sm:max-w-[200px] mx-auto select-none">
+      <div className="grid grid-cols-3 gap-2.5 max-w-[200px] mx-auto select-none p-1 bg-black/20 rounded-xl">
         <div />
         <Button 
           variant="outline" 
@@ -69,9 +69,9 @@ export function JogControls({ mode, onMove }: JogControlsProps) {
           onPointerDown={() => startMoving('Y', 1)}
           onPointerUp={stopMoving}
           onPointerLeave={stopMoving}
-          className="h-10 w-10 sm:h-12 sm:w-12 border-primary/20 hover:border-primary active:bg-primary/20"
+          className="h-14 w-14 border-white/10 hover:border-cyan-500/50 hover:bg-cyan-500/10 active-press"
         >
-          <ChevronUp className="w-5 h-5" />
+          <ChevronUp className="w-6 h-6" />
         </Button>
         <div />
 
@@ -81,12 +81,12 @@ export function JogControls({ mode, onMove }: JogControlsProps) {
           onPointerDown={() => startMoving('X', -1)}
           onPointerUp={stopMoving}
           onPointerLeave={stopMoving}
-          className="h-10 w-10 sm:h-12 sm:w-12 border-primary/20 hover:border-primary active:bg-primary/20"
+          className="h-14 w-14 border-white/10 hover:border-cyan-500/50 hover:bg-cyan-500/10 active-press"
         >
-          <ChevronLeft className="w-5 h-5" />
+          <ChevronLeft className="w-6 h-6" />
         </Button>
-        <Button variant="outline" size="icon" className="h-10 w-10 sm:h-12 sm:w-12 bg-primary/10 border-primary/40">
-          <RotateCcw className="w-4 h-4 text-primary" />
+        <Button variant="outline" size="icon" className="h-14 w-14 bg-cyan-500/5 border-cyan-500/20 text-cyan-400 active-press">
+          <RotateCcw className="w-5 h-5" />
         </Button>
         <Button 
           variant="outline" 
@@ -94,9 +94,9 @@ export function JogControls({ mode, onMove }: JogControlsProps) {
           onPointerDown={() => startMoving('X', 1)}
           onPointerUp={stopMoving}
           onPointerLeave={stopMoving}
-          className="h-10 w-10 sm:h-12 sm:w-12 border-primary/20 hover:border-primary active:bg-primary/20"
+          className="h-14 w-14 border-white/10 hover:border-cyan-500/50 hover:bg-cyan-500/10 active-press"
         >
-          <ChevronRight className="w-5 h-5" />
+          <ChevronRight className="w-6 h-6" />
         </Button>
 
         <div />
@@ -106,48 +106,48 @@ export function JogControls({ mode, onMove }: JogControlsProps) {
           onPointerDown={() => startMoving('Y', -1)}
           onPointerUp={stopMoving}
           onPointerLeave={stopMoving}
-          className="h-10 w-10 sm:h-12 sm:w-12 border-primary/20 hover:border-primary active:bg-primary/20"
+          className="h-14 w-14 border-white/10 hover:border-cyan-500/50 hover:bg-cyan-500/10 active-press"
         >
-          <ChevronDown className="w-5 h-5" />
+          <ChevronDown className="w-6 h-6" />
         </Button>
         <div />
       </div>
 
-      <div className="grid grid-cols-2 gap-3 mt-1">
-        <div className="flex flex-col gap-1.5">
-          <span className="text-[9px] uppercase text-muted-foreground font-black">Tool Z-Axis</span>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="flex flex-col gap-2">
+          <span className="text-[8px] font-black uppercase tracking-widest text-muted-foreground">Tool Height (Z)</span>
           <div className="flex gap-2">
             <Button 
               variant="outline" 
-              className="flex-1 h-9 sm:h-10 border-primary/20 text-[10px] font-bold" 
+              className="flex-1 h-12 border-white/10 text-[10px] font-black active-press uppercase" 
               onPointerDown={() => startMoving('Z', 1)}
               onPointerUp={stopMoving}
               onPointerLeave={stopMoving}
             >
-              <ArrowUpRight className="w-3.5 h-3.5 mr-1" /> Lift
+              <ArrowUpRight className="w-4 h-4 mr-2" /> Lift
             </Button>
             <Button 
               variant="outline" 
-              className="flex-1 h-9 sm:h-10 border-primary/20 text-[10px] font-bold" 
+              className="flex-1 h-12 border-white/10 text-[10px] font-black active-press uppercase" 
               onPointerDown={() => startMoving('Z', -1)}
               onPointerUp={stopMoving}
               onPointerLeave={stopMoving}
             >
-              <ArrowUpLeft className="w-3.5 h-3.5 mr-1" /> Drop
+              <ArrowUpLeft className="w-4 h-4 mr-2" /> Drop
             </Button>
           </div>
         </div>
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-2">
           <div className="flex justify-between items-center">
-            <span className="text-[9px] uppercase text-muted-foreground font-black">Feed</span>
-            <span className="text-[9px] font-mono font-bold">{feedRate}</span>
+            <span className="text-[8px] font-black uppercase tracking-widest text-muted-foreground">Feed Speed</span>
+            <span className="text-[10px] font-code font-bold text-cyan-400">{feedRate}</span>
           </div>
           <Slider 
             value={[feedRate]} 
             onValueChange={([v]) => setFeedRate(v)} 
             max={5000} 
             step={100} 
-            className="py-1"
+            className="py-2"
           />
         </div>
       </div>

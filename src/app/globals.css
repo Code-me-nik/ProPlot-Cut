@@ -4,26 +4,26 @@
 
 @layer base {
   :root {
-    --background: 222 47% 11%;
+    --background: 222 47% 6%;
     --foreground: 210 40% 98%;
-    --card: 222 47% 11%;
+    --card: 222 47% 8%;
     --card-foreground: 210 40% 98%;
-    --popover: 222 47% 11%;
+    --popover: 222 47% 8%;
     --popover-foreground: 210 40% 98%;
     --primary: 231 48% 48%;
     --primary-foreground: 210 40% 98%;
-    --secondary: 222 47% 15%;
+    --secondary: 222 47% 12%;
     --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
+    --muted: 217.2 32.6% 14%;
     --muted-foreground: 215 20.2% 65.1%;
-    --accent: 142 100% 50%;
-    --accent-foreground: 222 47% 11%;
+    --accent: 180 100% 50%;
+    --accent-foreground: 222 47% 6%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 224.3 76.3% 48%;
-    --radius: 0.25rem;
+    --radius: 0.3rem;
   }
 }
 
@@ -32,53 +32,64 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground selection:bg-primary/40;
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
 
+/* Industrial Glow Effects */
 .glow-green {
-  box-shadow: 0 0 15px rgba(0, 255, 0, 0.6);
+  box-shadow: 0 0 20px rgba(34, 197, 94, 0.4);
 }
 
 .glow-red {
-  box-shadow: 0 0 15px rgba(255, 0, 0, 0.6);
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
 }
 
-.glow-blue {
-  box-shadow: 0 0 20px rgba(63, 81, 181, 0.5);
+.glow-cyan {
+  box-shadow: 0 0 25px rgba(6, 182, 212, 0.5);
 }
 
 .neon-connection {
-  box-shadow: 0 0 25px rgba(0, 243, 255, 0.4), inset 0 0 10px rgba(0, 243, 255, 0.2);
-  border-color: rgba(0, 243, 255, 0.6) !important;
+  border-color: rgba(6, 182, 212, 0.5) !important;
+  box-shadow: inset 0 0 10px rgba(6, 182, 212, 0.2), 0 0 15px rgba(6, 182, 212, 0.3);
 }
 
-.neon-text-blue {
-  text-shadow: 0 0 8px rgba(0, 243, 255, 0.8);
-  color: #00f3ff;
+.neon-text-cyan {
+  text-shadow: 0 0 8px rgba(6, 182, 212, 0.8);
+  color: #22d3ee;
+}
+
+/* Interactive Utility Classes */
+.active-press {
+  @apply transition-transform duration-75 active:scale-95;
 }
 
 /* Custom scrollbar for terminal feel */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
-  background: hsl(var(--secondary));
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: hsl(var(--muted-foreground) / 0.3);
-  border-radius: 3px;
+  background: hsl(var(--muted-foreground) / 0.2);
+  border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--muted-foreground) / 0.5);
+  background: hsl(var(--muted-foreground) / 0.4);
 }
 
-@keyframes pulse-neon {
-  0%, 100% { opacity: 1; filter: brightness(1.2); }
-  50% { opacity: 0.8; filter: brightness(0.8); }
+@keyframes pulse-cyan {
+  0%, 100% { opacity: 1; filter: drop-shadow(0 0 5px rgba(6, 182, 212, 0.8)); }
+  50% { opacity: 0.7; filter: drop-shadow(0 0 2px rgba(6, 182, 212, 0.4)); }
 }
 
-.animate-neon {
-  animation: pulse-neon 1.5s ease-in-out infinite;
+.animate-neon-pulse {
+  animation: pulse-cyan 2s ease-in-out infinite;
+}
+
+.glass-panel {
+  @apply bg-secondary/30 backdrop-blur-md border border-white/5;
 }

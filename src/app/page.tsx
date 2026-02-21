@@ -32,7 +32,8 @@ import {
   LayoutDashboard,
   Terminal as TerminalIcon,
   ChevronDown,
-  Cpu
+  Cpu,
+  Settings
 } from 'lucide-react'
 import { connectToArduino, getExistingPort, ArduinoConnection } from '@/lib/arduino-connection'
 import { cn } from "@/lib/utils"
@@ -45,10 +46,10 @@ interface JobFile {
 }
 
 const ARDUINO_BOARDS = [
-  { id: 'uno', name: 'Arduino Uno', icon: <Cpu className="w-3 h-3 mr-2" /> },
-  { id: 'mega', name: 'Arduino Mega 2560', icon: <Cpu className="w-3 h-3 mr-2" /> },
-  { id: 'nano', name: 'Arduino Nano', icon: <Cpu className="w-3 h-3 mr-2" /> },
-  { id: 'leonardo', name: 'Arduino Leonardo', icon: <Cpu className="w-3 h-3 mr-2" /> },
+  { id: 'uno', name: 'Arduino Uno', icon: <Cpu className="w-3.5 h-3.5 mr-2" /> },
+  { id: 'mega', name: 'Arduino Mega 2560', icon: <Cpu className="w-3.5 h-3.5 mr-2" /> },
+  { id: 'nano', name: 'Arduino Nano', icon: <Cpu className="w-3.5 h-3.5 mr-2" /> },
+  { id: 'leonardo', name: 'Arduino Leonardo', icon: <Cpu className="w-3.5 h-3.5 mr-2" /> },
 ];
 
 export default function Dashboard() {
@@ -61,7 +62,6 @@ export default function Dashboard() {
   const [connection, setConnection] = useState<ArduinoConnection | null>(null);
   const [progress, setProgress] = useState(0);
   
-  // File System State
   const [jobFolder, setJobFolder] = useState<string | null>(null);
   const [jobFiles, setJobFiles] = useState<JobFile[]>([]);
 
@@ -88,14 +88,13 @@ export default function Dashboard() {
     attemptAutoConnect();
   }, [handleIncomingData, addLog]);
 
-  // Simulate progress when running
   useEffect(() => {
     if (machineState === 'RUN') {
       progressInterval.current = setInterval(() => {
         setProgress(prev => {
           if (prev >= 100) {
             setMachineState('IDLE');
-            addLog('received', 'Job Complete.');
+            addLog('received', 'Job sequence finalized.');
             return 100;
           }
           return prev + 0.5;
@@ -117,14 +116,9 @@ export default function Dashboard() {
     setMachineState('RUN');
     if (progress >= 100) setProgress(0);
     
-    const commands = ['G21', 'G90', 'X0'];
     if (connection) {
-      for (const cmd of commands) {
-        await connection.send(cmd);
-        addLog('sent', cmd);
-      }
-    } else {
-      addLog('sent', 'Simulation sequence started');
+      await connection.send('G21 G90');
+      addLog('sent', 'G21 G90');
     }
   };
 
@@ -132,10 +126,9 @@ export default function Dashboard() {
     setMachineState('IDLE');
     setProgress(0);
     if (connection) {
-      await connection.send('STOP');
-      addLog('sent', 'STOP (E-Stop Command)');
+      await connection.send('!'); // GRBL Feed Hold
+      addLog('warning', 'EMERGENCY STOP (E-STOP) TRIGGERED');
     }
-    addLog('warning', 'Machine stopped by user.');
   };
 
   const handleMove = async (axis: string, amount: number) => {
@@ -155,32 +148,32 @@ export default function Dashboard() {
 
   const handleLoadFolder = async () => {
     try {
-      // @ts-ignore - File System Access API
+      // @ts-ignore
       const dirHandle = await window.showDirectoryPicker();
       setJobFolder(dirHandle.name);
       const files: JobFile[] = [];
       for await (const entry of dirHandle.values()) {
-        if (entry.kind === 'file' && (entry.name.endsWith('.nc') || entry.name.endsWith('.gcode') || entry.name.endsWith('.txt'))) {
+        if (entry.kind === 'file' && (entry.name.endsWith('.nc') || entry.name.endsWith('.gcode'))) {
           files.push({ name: entry.name, handle: entry as FileSystemFileHandle });
         }
       }
       setJobFiles(files);
-      addLog('received', `Loaded ${files.length} jobs from ${dirHandle.name}`);
+      addLog('received', `Source linked: ${dirHandle.name} (${files.length} items)`);
     } catch (err) {
-      addLog('error', 'Folder access denied or cancelled.');
+      addLog('error', 'Storage access cancelled.');
     }
   };
 
   const handleConnect = async (board: typeof selectedBoard) => {
     setSelectedBoard(board);
-    addLog('sent', `Targeting ${board.name} via Serial Port...`);
+    addLog('sent', `Establishing link to ${board.name}...`);
     const conn = await connectToArduino(handleIncomingData);
     if (conn) {
       setConnection(conn);
       setUsbConnected(true);
-      addLog('received', `Connected to ${board.name} @ 115200 baud`);
+      addLog('received', `COMMUNICATIONS ESTABLISHED: ${board.name}`);
     } else {
-      addLog('error', 'Connection failed or cancelled.');
+      addLog('error', 'Serial handshake failed.');
     }
   };
 
@@ -189,36 +182,39 @@ export default function Dashboard() {
       await connection.disconnect();
       setConnection(null);
       setUsbConnected(false);
-      addLog('warning', 'Serial port disconnected.');
+      addLog('warning', 'Link terminated by user.');
     }
   };
 
   return (
-    <div className="flex flex-col h-screen bg-[#0a0c10] text-foreground overflow-hidden select-none">
-      {/* Header */}
-      <header className="flex items-center justify-between p-2 sm:p-3 border-b border-white/5 bg-secondary/20 shrink-0">
-        <div className="flex items-center gap-2">
+    <div className="flex flex-col h-full w-full bg-[#040608] text-foreground transition-all">
+      {/* Header - Industrial Navigation */}
+      <header className="flex items-center justify-between px-4 py-3 border-b border-white/5 bg-secondary/10 backdrop-blur-xl shrink-0 z-50">
+        <div className="flex items-center gap-3">
           <div className={cn(
-            "p-1.5 rounded-sm transition-all duration-500",
-            usbConnected ? "bg-cyan-500 neon-connection animate-neon shadow-[0_0_20px_rgba(6,182,212,0.5)]" : "bg-primary"
+            "p-2 rounded-sm transition-all duration-700 active-press shadow-2xl",
+            usbConnected ? "bg-cyan-500 glow-cyan animate-neon-pulse shadow-cyan-500/20" : "bg-primary shadow-primary/10"
           )}>
-            <Power className={cn("w-3.5 h-3.5 sm:w-4 sm:h-4", usbConnected ? "text-black" : "text-white")} />
+            <Power className={cn("w-4 h-4", usbConnected ? "text-black" : "text-white")} />
           </div>
           <div className="flex flex-col">
-            <h1 className="text-xs sm:text-sm font-black tracking-tighter uppercase italic leading-none">ProPlot <span className="text-primary">CNC</span></h1>
-            <span className="text-[7px] sm:text-[8px] text-muted-foreground font-bold tracking-widest uppercase">Industrial Controller</span>
+            <h1 className="text-sm font-black tracking-tighter uppercase italic leading-none flex items-center gap-1">
+              ProPlot <span className="text-cyan-400">CNC</span>
+              <span className="text-[8px] bg-white/5 px-1 rounded-sm text-white/40 ml-1">v1.1h</span>
+            </h1>
+            <span className="text-[8px] text-muted-foreground font-black tracking-[0.2em] uppercase opacity-60">System Controller</span>
           </div>
         </div>
         
-        <div className="flex items-center gap-1.5 sm:gap-2">
+        <div className="flex items-center gap-2">
           {usbConnected ? (
             <Button 
               variant="destructive" 
               size="sm" 
-              className="h-7 sm:h-8 text-[9px] sm:text-[10px] font-black uppercase px-2 sm:px-3 shadow-[0_0_15px_rgba(239,68,68,0.3)]"
+              className="h-9 px-4 text-[10px] font-black uppercase tracking-widest bg-red-600/20 border border-red-600/40 text-red-500 hover:bg-red-600 hover:text-white transition-all active-press shadow-red-500/10"
               onClick={handleDisconnect}
             >
-              <Unlink className="w-3 h-3 mr-1" />
+              <Unlink className="w-3.5 h-3.5 mr-2" />
               Disconnect
             </Button>
           ) : (
@@ -227,21 +223,21 @@ export default function Dashboard() {
                 <Button 
                   variant="default" 
                   size="sm" 
-                  className="h-7 sm:h-8 text-[9px] sm:text-[10px] font-black uppercase px-2 sm:px-3 bg-cyan-600 hover:bg-cyan-500 neon-connection"
+                  className="h-9 px-4 text-[10px] font-black uppercase tracking-widest bg-cyan-600 hover:bg-cyan-500 active-press neon-connection"
                 >
-                  <Usb className="w-3 h-3 mr-1" />
-                  Connect
-                  <ChevronDown className="w-3 h-3 ml-1" />
+                  <Usb className="w-3.5 h-3.5 mr-2" />
+                  Link Device
+                  <ChevronDown className="w-3.5 h-3.5 ml-1.5 opacity-50" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="bg-secondary/95 border-primary/20 backdrop-blur-md">
-                <DropdownMenuLabel className="text-[10px] uppercase font-bold text-muted-foreground">Select Board</DropdownMenuLabel>
-                <DropdownMenuSeparator className="bg-white/10" />
+              <DropdownMenuContent className="bg-[#0c0f14] border-white/10 w-56 backdrop-blur-2xl">
+                <DropdownMenuLabel className="text-[10px] uppercase font-black text-muted-foreground p-3">Available Interfaces</DropdownMenuLabel>
+                <DropdownMenuSeparator className="bg-white/5" />
                 {ARDUINO_BOARDS.map((board) => (
                   <DropdownMenuItem 
                     key={board.id} 
                     onClick={() => handleConnect(board)}
-                    className="text-[11px] font-bold focus:bg-primary/20 focus:text-primary cursor-pointer py-2"
+                    className="text-[11px] font-bold p-3 focus:bg-cyan-600/20 focus:text-cyan-400 transition-colors"
                   >
                     {board.icon}
                     {board.name}
@@ -250,77 +246,83 @@ export default function Dashboard() {
               </DropdownMenuContent>
             </DropdownMenu>
           )}
-          <Button variant="ghost" size="icon" className="text-muted-foreground h-7 w-7 sm:h-8 sm:w-8"><HelpCircle className="w-3.5 h-3.5" /></Button>
+          <Button variant="ghost" size="icon" className="text-muted-foreground hover:bg-white/5 h-9 w-9"><Settings className="w-4 h-4" /></Button>
         </div>
       </header>
 
-      {/* Main Content */}
+      {/* Main Responsive Grid */}
       <main className="flex-1 overflow-hidden">
         <Tabs defaultValue="dashboard" className="h-full flex flex-col">
-          <div className="px-2 py-1 bg-secondary/10 border-b border-white/5 lg:hidden">
-            <TabsList className="grid w-full grid-cols-4 bg-transparent h-8 sm:h-9">
-              <TabsTrigger value="dashboard" className="data-[state=active]:bg-primary/20 text-[9px] sm:text-[10px] uppercase font-bold"><LayoutDashboard className="w-3 h-3 mr-1" /> Main</TabsTrigger>
-              <TabsTrigger value="control" className="data-[state=active]:bg-primary/20 text-[9px] sm:text-[10px] uppercase font-bold"><RefreshCw className="w-3 h-3 mr-1" /> Jog</TabsTrigger>
-              <TabsTrigger value="files" className="data-[state=active]:bg-primary/20 text-[9px] sm:text-[10px] uppercase font-bold"><FolderOpen className="w-3 h-3 mr-1" /> Jobs</TabsTrigger>
-              <TabsTrigger value="terminal" className="data-[state=active]:bg-primary/20 text-[9px] sm:text-[10px] uppercase font-bold"><TerminalIcon className="w-3 h-3 mr-1" /> Log</TabsTrigger>
+          <div className="px-3 py-1.5 bg-secondary/5 border-b border-white/5 lg:hidden overflow-x-auto no-scrollbar">
+            <TabsList className="flex w-full bg-transparent h-9 gap-1">
+              <TabsTrigger value="dashboard" className="flex-1 data-[state=active]:bg-primary/20 text-[10px] font-black uppercase tracking-tighter h-full"><LayoutDashboard className="w-3.5 h-3.5 mr-1.5" /> HUD</TabsTrigger>
+              <TabsTrigger value="control" className="flex-1 data-[state=active]:bg-primary/20 text-[10px] font-black uppercase tracking-tighter h-full"><RefreshCw className="w-3.5 h-3.5 mr-1.5" /> Jog</TabsTrigger>
+              <TabsTrigger value="files" className="flex-1 data-[state=active]:bg-primary/20 text-[10px] font-black uppercase tracking-tighter h-full"><FolderOpen className="w-3.5 h-3.5 mr-1.5" /> Disk</TabsTrigger>
+              <TabsTrigger value="terminal" className="flex-1 data-[state=active]:bg-primary/20 text-[10px] font-black uppercase tracking-tighter h-full"><TerminalIcon className="w-3.5 h-3.5 mr-1.5" /> Log</TabsTrigger>
             </TabsList>
           </div>
 
-          <div className="flex-1 overflow-hidden relative">
-            {/* Desktop Layout (Standard Grid) */}
-            <div className="hidden lg:grid grid-cols-12 gap-4 h-full p-4">
-              <div className="col-span-3 flex flex-col gap-4 overflow-y-auto pr-1">
+          <div className="flex-1 relative overflow-hidden">
+            {/* Desktop: Industrial Multi-Panel Grid */}
+            <div className="hidden lg:grid grid-cols-12 gap-4 h-full p-4 overflow-hidden">
+              <div className="col-span-3 flex flex-col gap-4 min-h-0">
                 <ModeSwitcher currentMode={mode} onModeChange={setMode} disabled={machineState === 'RUN'} />
-                <PrecisionTestPanel onGenerated={(gc) => addLog('received', 'Test G-Code loaded')} />
+                <PrecisionTestPanel onGenerated={(gc) => addLog('received', 'AI Sequence Optimized')} />
               </div>
-              <div className="col-span-6 flex flex-col gap-4">
+              
+              <div className="col-span-6 flex flex-col gap-4 h-full">
                 <StatusMonitor x={pos.x} y={pos.y} z={pos.z} state={machineState} usbConnected={usbConnected} mode={mode} />
-                <div className="flex-1 min-h-0 bg-black/40 rounded-lg border border-white/5 overflow-hidden">
+                <div className="flex-1 min-h-0 glass-panel rounded-lg overflow-hidden shadow-2xl relative">
                   <ToolpathRenderer currentPath="" completedLines={0} progress={progress} />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <Button size="lg" className={cn("h-14 uppercase font-black tracking-widest text-lg transition-all", machineState === 'RUN' ? 'bg-orange-500' : 'bg-green-600 glow-green active:scale-95')} onClick={handleStart}>
-                    {machineState === 'RUN' ? <><Pause className="mr-2" /> Pause</> : <><Play className="mr-2" /> Start</>}
+                <div className="grid grid-cols-2 gap-4 shrink-0">
+                  <Button size="lg" className={cn(
+                    "h-16 uppercase font-black tracking-[0.2em] text-lg active-press transition-all border-none",
+                    machineState === 'RUN' ? 'bg-orange-600 hover:bg-orange-500' : 'bg-emerald-600 hover:bg-emerald-500 glow-green'
+                  )} onClick={handleStart}>
+                    {machineState === 'RUN' ? <><Pause className="mr-2" /> Hold</> : <><Play className="mr-2" /> Cycle Start</>}
                   </Button>
-                  <Button size="lg" variant="destructive" className="h-14 uppercase font-black tracking-widest text-lg glow-red active:scale-95" onClick={handleStop}><Square className="mr-2 fill-current" /> Stop</Button>
+                  <Button size="lg" variant="destructive" className="h-16 uppercase font-black tracking-[0.2em] text-lg active-press glow-red border-none bg-red-600 hover:bg-red-500" onClick={handleStop}>
+                    <Square className="mr-2 fill-current" /> Stop
+                  </Button>
                 </div>
               </div>
-              <div className="col-span-3 flex flex-col gap-4 overflow-y-auto pl-1">
+
+              <div className="col-span-3 flex flex-col gap-4 h-full overflow-hidden">
                 <JogControls mode={mode} onMove={handleMove} />
                 <JobQueue folderName={jobFolder} files={jobFiles} onLoadFolder={handleLoadFolder} />
-                <div className="h-[200px] shrink-0">
+                <div className="flex-1 min-h-0">
                   <MachineConsole logs={logs} />
                 </div>
               </div>
             </div>
 
-            {/* Mobile/Tablet View with Tabs */}
-            <div className="lg:hidden h-full flex flex-col">
+            {/* Mobile/Tablet: Tabbed Viewport */}
+            <div className="lg:hidden h-full flex flex-col bg-[#050709]">
               <TabsContent value="dashboard" className="flex-1 m-0 flex flex-col gap-3 p-3 overflow-hidden">
                 <StatusMonitor x={pos.x} y={pos.y} z={pos.z} state={machineState} usbConnected={usbConnected} mode={mode} />
-                <div className="flex-1 min-h-0 bg-black/40 rounded-lg border border-white/5 overflow-hidden">
+                <div className="flex-1 min-h-0 glass-panel rounded-lg overflow-hidden relative shadow-2xl">
                   <ToolpathRenderer currentPath="" completedLines={0} progress={progress} />
                 </div>
-                <div className="grid grid-cols-2 gap-2 shrink-0">
-                   <Button className={cn("h-12 uppercase font-black", machineState === 'RUN' ? 'bg-orange-500' : 'bg-green-600')} onClick={handleStart}>
-                     {machineState === 'RUN' ? <Pause className="w-4 h-4 mr-2" /> : <Play className="w-4 h-4 mr-2" />} {machineState === 'RUN' ? 'Pause' : 'Start'}
+                <div className="grid grid-cols-2 gap-2 shrink-0 pb-safe">
+                   <Button className={cn("h-14 uppercase font-black border-none text-[12px] tracking-widest", machineState === 'RUN' ? 'bg-orange-600' : 'bg-emerald-600 shadow-lg')} onClick={handleStart}>
+                     {machineState === 'RUN' ? <Pause className="w-4 h-4 mr-2" /> : <Play className="w-4 h-4 mr-2" />} 
+                     {machineState === 'RUN' ? 'Pause' : 'Start Cycle'}
                    </Button>
-                   <Button variant="destructive" className="h-12 uppercase font-black" onClick={handleStop}><Square className="w-4 h-4 mr-2" /> Stop</Button>
+                   <Button variant="destructive" className="h-14 uppercase font-black border-none text-[12px] tracking-widest bg-red-600 shadow-lg" onClick={handleStop}>
+                     <Square className="w-4 h-4 mr-2" /> Stop
+                   </Button>
                 </div>
               </TabsContent>
-              <TabsContent value="control" className="flex-1 m-0 p-3 space-y-4 overflow-y-auto">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <ModeSwitcher currentMode={mode} onModeChange={setMode} disabled={machineState === 'RUN'} />
-                  <JogControls mode={mode} onMove={handleMove} />
-                </div>
+              <TabsContent value="control" className="flex-1 m-0 p-3 space-y-4 overflow-y-auto pb-safe">
+                <ModeSwitcher currentMode={mode} onModeChange={setMode} disabled={machineState === 'RUN'} />
+                <JogControls mode={mode} onMove={handleMove} />
               </TabsContent>
-              <TabsContent value="files" className="flex-1 m-0 p-3 space-y-4 overflow-y-auto">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <JobQueue folderName={jobFolder} files={jobFiles} onLoadFolder={handleLoadFolder} />
-                  <PrecisionTestPanel onGenerated={(gc) => addLog('received', 'Test G-Code loaded')} />
-                </div>
+              <TabsContent value="files" className="flex-1 m-0 p-3 space-y-4 overflow-y-auto pb-safe">
+                <JobQueue folderName={jobFolder} files={jobFiles} onLoadFolder={handleLoadFolder} />
+                <PrecisionTestPanel onGenerated={(gc) => addLog('received', 'AI Test Loaded')} />
               </TabsContent>
-              <TabsContent value="terminal" className="flex-1 m-0 p-3 flex flex-col overflow-hidden">
+              <TabsContent value="terminal" className="flex-1 m-0 p-3 flex flex-col overflow-hidden pb-safe">
                 <MachineConsole logs={logs} />
               </TabsContent>
             </div>
@@ -328,17 +330,21 @@ export default function Dashboard() {
         </Tabs>
       </main>
 
-      {/* Footer / Status Bar */}
-      <footer className="h-7 sm:h-8 bg-secondary/80 border-t border-white/5 flex items-center justify-between px-3 text-[8px] sm:text-[9px] font-bold text-muted-foreground shrink-0 overflow-hidden">
-        <div className="flex gap-4 items-center">
+      {/* Footer - Live Status Bar */}
+      <footer className="h-8 bg-secondary/80 border-t border-white/5 flex items-center justify-between px-4 text-[9px] font-black tracking-widest uppercase text-muted-foreground shrink-0 z-50">
+        <div className="flex gap-6 items-center">
           <div className="flex items-center gap-2">
-            <div className={cn("w-1.5 h-1.5 rounded-full transition-all duration-300", usbConnected ? 'bg-cyan-400 animate-pulse glow-blue' : 'bg-red-500')} />
-            <span className={usbConnected ? "neon-text-blue" : ""}>{usbConnected ? `${selectedBoard.name.toUpperCase()} ACTIVE` : 'NO DEVICE'}</span>
+            <div className={cn("w-1.5 h-1.5 rounded-full shadow-lg transition-all duration-300", usbConnected ? 'bg-cyan-400 animate-pulse glow-cyan' : 'bg-red-500')} />
+            <span className={usbConnected ? "neon-text-cyan" : ""}>{usbConnected ? `${selectedBoard.name} CONNECTED` : 'NO DEVICE LINKED'}</span>
           </div>
-          <div className="hidden xs:block opacity-50">S: 115200 | G: 1.1h</div>
+          <div className="hidden md:flex gap-6 opacity-40">
+            <span>BAUD: 115200</span>
+            <span>FR: 1000 MM/M</span>
+            <span>VER: GRBL-P v1.1</span>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="font-mono text-foreground opacity-70">{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+        <div className="flex items-center gap-4">
+          <span className="font-mono text-foreground/50">{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
         </div>
       </footer>
     </div>
@@ -347,34 +353,34 @@ export default function Dashboard() {
 
 function JobQueue({ folderName, files, onLoadFolder }: { folderName: string | null, files: JobFile[], onLoadFolder: () => void }) {
   return (
-    <div className="bg-secondary/50 p-3 rounded-lg border border-border/50 flex flex-col gap-3">
+    <div className="bg-secondary/20 p-4 rounded-lg border border-white/5 flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-          <FileText className="w-3 h-3" /> Job Storage
+        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+          <FileText className="w-3.5 h-3.5" /> Local Vault
         </h3>
-        {folderName && <span className="text-[9px] font-mono text-cyan-500 truncate max-w-[120px]">/{folderName}</span>}
+        {folderName && <span className="text-[9px] font-mono text-cyan-400 truncate max-w-[140px] opacity-60">/{folderName}</span>}
       </div>
       
       <div className="space-y-1.5 max-h-[160px] overflow-y-auto pr-1">
         {files.length > 0 ? (
           files.map((file, i) => (
-            <div key={i} className="bg-black/20 p-2 rounded border border-white/5 flex items-center justify-between hover:border-primary/40 cursor-pointer transition-colors active:bg-primary/5">
-              <div className="flex items-center gap-2 truncate">
-                <div className="w-1.5 h-1.5 rounded-full bg-cyan-500" />
-                <span className="text-[10px] font-bold truncate">{file.name}</span>
+            <div key={i} className="bg-black/40 p-2.5 rounded border border-white/5 flex items-center justify-between hover:border-cyan-500/40 cursor-pointer transition-all active-press">
+              <div className="flex items-center gap-2.5 truncate">
+                <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 shadow-cyan-500/50" />
+                <span className="text-[10px] font-bold truncate tracking-tight">{file.name}</span>
               </div>
-              <Download className="w-3 h-3 text-muted-foreground" />
+              <Download className="w-3.5 h-3.5 text-muted-foreground/60" />
             </div>
           ))
         ) : (
-          <div className="p-4 text-center border border-dashed border-white/10 rounded">
-            <span className="text-[9px] text-muted-foreground italic">No local directory linked</span>
+          <div className="py-8 text-center border border-dashed border-white/10 rounded-lg">
+            <span className="text-[9px] text-muted-foreground/40 font-bold italic">LINK STORAGE FOR G-CODE ACCESS</span>
           </div>
         )}
       </div>
 
-      <Button variant="outline" onClick={onLoadFolder} className="w-full h-8 text-[9px] uppercase font-black border-dashed bg-primary/5 hover:bg-primary/10 border-primary/20 transition-all active:scale-95">
-        <FolderOpen className="w-3 h-3 mr-2" /> {folderName ? 'Sync Folder' : 'Link Job Directory'}
+      <Button variant="outline" onClick={onLoadFolder} className="w-full h-10 text-[10px] font-black uppercase tracking-widest border-dashed bg-white/5 hover:bg-white/10 border-white/10 transition-all active-press">
+        <FolderOpen className="w-4 h-4 mr-2" /> {folderName ? 'Sync Storage' : 'Link Job Directory'}
       </Button>
     </div>
   );
