@@ -10,6 +10,14 @@ import { PrecisionTestPanel } from '@/components/test/precision-test-panel'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { 
   Play, 
   Pause, 
   Square, 
@@ -22,7 +30,9 @@ import {
   Unlink,
   FolderOpen,
   LayoutDashboard,
-  Terminal as TerminalIcon
+  Terminal as TerminalIcon,
+  ChevronDown,
+  Cpu
 } from 'lucide-react'
 import { connectToArduino, getExistingPort, ArduinoConnection } from '@/lib/arduino-connection'
 import { cn } from "@/lib/utils"
@@ -34,11 +44,19 @@ interface JobFile {
   handle: FileSystemFileHandle;
 }
 
+const ARDUINO_BOARDS = [
+  { id: 'uno', name: 'Arduino Uno', icon: <Cpu className="w-3 h-3 mr-2" /> },
+  { id: 'mega', name: 'Arduino Mega 2560', icon: <Cpu className="w-3 h-3 mr-2" /> },
+  { id: 'nano', name: 'Arduino Nano', icon: <Cpu className="w-3 h-3 mr-2" /> },
+  { id: 'leonardo', name: 'Arduino Leonardo', icon: <Cpu className="w-3 h-3 mr-2" /> },
+];
+
 export default function Dashboard() {
   const [machineState, setMachineState] = useState<'IDLE' | 'RUN' | 'HOLD' | 'ALARM' | 'HOME'>('IDLE');
   const [mode, setMode] = useState<MachineMode>('PLOTTER');
   const [pos, setPos] = useState({ x: 0, y: 0, z: 0 });
   const [usbConnected, setUsbConnected] = useState(false);
+  const [selectedBoard, setSelectedBoard] = useState(ARDUINO_BOARDS[0]);
   const [logs, setLogs] = useState<{ timestamp: string, type: 'sent' | 'received' | 'error' | 'warning', message: string }[]>([]);
   const [connection, setConnection] = useState<ArduinoConnection | null>(null);
   const [progress, setProgress] = useState(0);
@@ -153,13 +171,14 @@ export default function Dashboard() {
     }
   };
 
-  const handleConnect = async () => {
-    addLog('sent', 'Requesting Arduino Serial Port...');
+  const handleConnect = async (board: typeof selectedBoard) => {
+    setSelectedBoard(board);
+    addLog('sent', `Targeting ${board.name} via Serial Port...`);
     const conn = await connectToArduino(handleIncomingData);
     if (conn) {
       setConnection(conn);
       setUsbConnected(true);
-      addLog('received', `Connected to Arduino Uno @ 115200 baud`);
+      addLog('received', `Connected to ${board.name} @ 115200 baud`);
     } else {
       addLog('error', 'Connection failed or cancelled.');
     }
@@ -192,18 +211,45 @@ export default function Dashboard() {
         </div>
         
         <div className="flex items-center gap-1.5 sm:gap-2">
-          <Button 
-            variant={usbConnected ? "destructive" : "default"} 
-            size="sm" 
-            className={cn(
-              "h-7 sm:h-8 text-[9px] sm:text-[10px] font-black uppercase px-2 sm:px-3",
-              usbConnected ? "shadow-[0_0_15px_rgba(239,68,68,0.3)]" : "bg-cyan-600 hover:bg-cyan-500 neon-connection"
-            )}
-            onClick={usbConnected ? handleDisconnect : handleConnect}
-          >
-            {usbConnected ? <Unlink className="w-3 h-3 mr-1" /> : <Usb className="w-3 h-3 mr-1" />}
-            {usbConnected ? 'Off' : 'Connect'}
-          </Button>
+          {usbConnected ? (
+            <Button 
+              variant="destructive" 
+              size="sm" 
+              className="h-7 sm:h-8 text-[9px] sm:text-[10px] font-black uppercase px-2 sm:px-3 shadow-[0_0_15px_rgba(239,68,68,0.3)]"
+              onClick={handleDisconnect}
+            >
+              <Unlink className="w-3 h-3 mr-1" />
+              Disconnect
+            </Button>
+          ) : (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button 
+                  variant="default" 
+                  size="sm" 
+                  className="h-7 sm:h-8 text-[9px] sm:text-[10px] font-black uppercase px-2 sm:px-3 bg-cyan-600 hover:bg-cyan-500 neon-connection"
+                >
+                  <Usb className="w-3 h-3 mr-1" />
+                  Connect
+                  <ChevronDown className="w-3 h-3 ml-1" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="bg-secondary/95 border-primary/20 backdrop-blur-md">
+                <DropdownMenuLabel className="text-[10px] uppercase font-bold text-muted-foreground">Select Board</DropdownMenuLabel>
+                <DropdownMenuSeparator className="bg-white/10" />
+                {ARDUINO_BOARDS.map((board) => (
+                  <DropdownMenuItem 
+                    key={board.id} 
+                    onClick={() => handleConnect(board)}
+                    className="text-[11px] font-bold focus:bg-primary/20 focus:text-primary cursor-pointer py-2"
+                  >
+                    {board.icon}
+                    {board.name}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
           <Button variant="ghost" size="icon" className="text-muted-foreground h-7 w-7 sm:h-8 sm:w-8"><HelpCircle className="w-3.5 h-3.5" /></Button>
         </div>
       </header>
@@ -287,7 +333,7 @@ export default function Dashboard() {
         <div className="flex gap-4 items-center">
           <div className="flex items-center gap-2">
             <div className={cn("w-1.5 h-1.5 rounded-full transition-all duration-300", usbConnected ? 'bg-cyan-400 animate-pulse glow-blue' : 'bg-red-500')} />
-            <span className={usbConnected ? "neon-text-blue" : ""}>{usbConnected ? 'USB ACTIVE' : 'NO DEVICE'}</span>
+            <span className={usbConnected ? "neon-text-blue" : ""}>{usbConnected ? `${selectedBoard.name.toUpperCase()} ACTIVE` : 'NO DEVICE'}</span>
           </div>
           <div className="hidden xs:block opacity-50">S: 115200 | G: 1.1h</div>
         </div>
