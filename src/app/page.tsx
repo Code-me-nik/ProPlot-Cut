@@ -23,7 +23,6 @@ import {
   Square, 
   Power, 
   Download, 
-  HelpCircle, 
   FileText, 
   Usb,
   RefreshCw,
@@ -208,15 +207,18 @@ export default function Dashboard() {
         
         <div className="flex items-center gap-2">
           {usbConnected ? (
-            <Button 
-              variant="destructive" 
-              size="sm" 
-              className="h-9 px-4 text-[10px] font-black uppercase tracking-widest bg-red-600/20 border border-red-600/40 text-red-500 hover:bg-red-600 hover:text-white transition-all active-press shadow-red-500/10"
-              onClick={handleDisconnect}
-            >
-              <Unlink className="w-3.5 h-3.5 mr-2" />
-              Disconnect
-            </Button>
+            <div className="flex flex-col items-end mr-2">
+               <Button 
+                variant="destructive" 
+                size="sm" 
+                className="h-9 px-4 text-[10px] font-black uppercase tracking-widest bg-red-600/20 border border-red-600/40 text-red-500 hover:bg-red-600 hover:text-white transition-all active-press shadow-red-500/10"
+                onClick={handleDisconnect}
+              >
+                <Unlink className="w-3.5 h-3.5 mr-2" />
+                {selectedBoard.name}
+              </Button>
+              <span className="text-[7px] font-black text-cyan-400 uppercase tracking-widest mt-1 opacity-80 neon-text-cyan">Serial Port Active</span>
+            </div>
           ) : (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -226,7 +228,7 @@ export default function Dashboard() {
                   className="h-9 px-4 text-[10px] font-black uppercase tracking-widest bg-cyan-600 hover:bg-cyan-500 active-press neon-connection"
                 >
                   <Usb className="w-3.5 h-3.5 mr-2" />
-                  Link Device
+                  {selectedBoard ? selectedBoard.name : 'Link Device'}
                   <ChevronDown className="w-3.5 h-3.5 ml-1.5 opacity-50" />
                 </Button>
               </DropdownMenuTrigger>
@@ -331,11 +333,14 @@ export default function Dashboard() {
       </main>
 
       {/* Footer - Live Status Bar */}
-      <footer className="h-8 bg-secondary/80 border-t border-white/5 flex items-center justify-between px-4 text-[9px] font-black tracking-widest uppercase text-muted-foreground shrink-0 z-50">
+      <footer className="h-10 bg-secondary/80 border-t border-white/5 flex items-center justify-between px-4 text-[9px] font-black tracking-widest uppercase text-muted-foreground shrink-0 z-50">
         <div className="flex gap-6 items-center">
-          <div className="flex items-center gap-2">
-            <div className={cn("w-1.5 h-1.5 rounded-full shadow-lg transition-all duration-300", usbConnected ? 'bg-cyan-400 animate-pulse glow-cyan' : 'bg-red-500')} />
-            <span className={usbConnected ? "neon-text-cyan" : ""}>{usbConnected ? `${selectedBoard.name} CONNECTED` : 'NO DEVICE LINKED'}</span>
+          <div className="flex flex-col">
+            <div className="flex items-center gap-2">
+              <div className={cn("w-1.5 h-1.5 rounded-full shadow-lg transition-all duration-300", usbConnected ? 'bg-cyan-400 animate-pulse glow-cyan' : 'bg-red-500')} />
+              <span className={usbConnected ? "neon-text-cyan" : ""}>{usbConnected ? `${selectedBoard.name} CONNECTED` : 'NO DEVICE LINKED'}</span>
+            </div>
+            {usbConnected && <span className="text-[7px] text-cyan-400/60 mt-0.5 ml-3.5 tracking-[0.2em]">Active Serial Link: /dev/ttyUSB0</span>}
           </div>
           <div className="hidden md:flex gap-6 opacity-40">
             <span>BAUD: 115200</span>
