@@ -34,6 +34,7 @@
   body {
     @apply bg-background text-foreground selection:bg-primary/40;
     font-feature-settings: "rlig" 1, "calt" 1;
+    overscroll-behavior-y: none; /* Prevent pull-to-refresh on Android */
   }
 }
 
@@ -92,4 +93,9 @@
 
 .glass-panel {
   @apply bg-secondary/30 backdrop-blur-md border border-white/5;
+}
+
+/* Fix for safe area on mobile devices with notches */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
 }

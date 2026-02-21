@@ -10,6 +10,9 @@ export const metadata: Metadata = {
     statusBarStyle: 'black-translucent',
     title: 'ProPlot CNC',
   },
+  formatDetection: {
+    telephone: false,
+  },
 };
 
 export const viewport: Viewport = {
@@ -34,8 +37,9 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=Source+Code+Pro:wght@400;600;700&display=swap" rel="stylesheet" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="theme-color" content="#06080a" />
       </head>
-      <body className="font-body antialiased bg-background text-foreground h-screen overflow-hidden touch-none select-none">
+      <body className="font-body antialiased bg-background text-foreground h-screen overflow-hidden touch-none select-none overscroll-none">
         {children}
       </body>
     </html>
